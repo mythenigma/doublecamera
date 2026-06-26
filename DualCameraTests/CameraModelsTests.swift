@@ -55,7 +55,7 @@ final class CameraModelsTests: XCTestCase {
     }
 }
 
-private extension JSONDecoder {
+extension JSONDecoder {
     static var iso8601: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

@@ -10,7 +10,10 @@
 		DCBF00000000000000000101 /* DualCameraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000101 /* DualCameraApp.swift */; };
 		DCBF00000000000000000102 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000102 /* ContentView.swift */; };
 		DCBF00000000000000000103 /* CameraModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000104 /* CameraModels.swift */; };
+		DCBF00000000000000000104 /* CapabilityReportExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000105 /* CapabilityReportExporter.swift */; };
+		DCBF00000000000000000105 /* CameraCapabilityScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000106 /* CameraCapabilityScanner.swift */; };
 		DCBF00000000000000000201 /* CameraModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000201 /* CameraModelsTests.swift */; };
+		DCBF00000000000000000202 /* CapabilityReportExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000202 /* CapabilityReportExporterTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,7 +33,10 @@
 		DCFI00000000000000000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000103 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DCFI00000000000000000104 /* CameraModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraModels.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000105 /* CapabilityReportExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityReportExporter.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000106 /* CameraCapabilityScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCapabilityScanner.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000201 /* CameraModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraModelsTests.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000202 /* CapabilityReportExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityReportExporterTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +105,8 @@
 		DCGR00000000000000000114 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				DCFI00000000000000000105 /* CapabilityReportExporter.swift */,
+				DCFI00000000000000000106 /* CameraCapabilityScanner.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -107,6 +115,7 @@
 			isa = PBXGroup;
 			children = (
 				DCFI00000000000000000201 /* CameraModelsTests.swift */,
+				DCFI00000000000000000202 /* CapabilityReportExporterTests.swift */,
 			);
 			path = DualCameraTests;
 			sourceTree = "<group>";
@@ -222,6 +231,8 @@
 				DCBF00000000000000000101 /* DualCameraApp.swift in Sources */,
 				DCBF00000000000000000102 /* ContentView.swift in Sources */,
 				DCBF00000000000000000103 /* CameraModels.swift in Sources */,
+				DCBF00000000000000000104 /* CapabilityReportExporter.swift in Sources */,
+				DCBF00000000000000000105 /* CameraCapabilityScanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -230,6 +241,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DCBF00000000000000000201 /* CameraModelsTests.swift in Sources */,
+				DCBF00000000000000000202 /* CapabilityReportExporterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -367,7 +379,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = J8DAZ6G7DJ;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DualCamera/App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -390,7 +402,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = J8DAZ6G7DJ;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DualCamera/App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -413,7 +425,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = J8DAZ6G7DJ;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -436,7 +448,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = J8DAZ6G7DJ;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
