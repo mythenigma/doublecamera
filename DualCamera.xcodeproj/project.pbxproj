@@ -12,6 +12,8 @@
 		DCBF00000000000000000103 /* CameraModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000104 /* CameraModels.swift */; };
 		DCBF00000000000000000104 /* CapabilityReportExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000105 /* CapabilityReportExporter.swift */; };
 		DCBF00000000000000000105 /* CameraCapabilityScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000106 /* CameraCapabilityScanner.swift */; };
+		DCBF00000000000000000106 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000107 /* PreviewView.swift */; };
+		DCBF00000000000000000107 /* CameraSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000108 /* CameraSessionController.swift */; };
 		DCBF00000000000000000201 /* CameraModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000201 /* CameraModelsTests.swift */; };
 		DCBF00000000000000000202 /* CapabilityReportExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000202 /* CapabilityReportExporterTests.swift */; };
 /* End PBXBuildFile section */
@@ -35,6 +37,8 @@
 		DCFI00000000000000000104 /* CameraModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraModels.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000105 /* CapabilityReportExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityReportExporter.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000106 /* CameraCapabilityScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCapabilityScanner.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000107 /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000108 /* CameraSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraSessionController.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000201 /* CameraModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraModelsTests.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000202 /* CapabilityReportExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityReportExporterTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -90,6 +94,7 @@
 			isa = PBXGroup;
 			children = (
 				DCFI00000000000000000102 /* ContentView.swift */,
+				DCFI00000000000000000107 /* PreviewView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -107,6 +112,7 @@
 			children = (
 				DCFI00000000000000000105 /* CapabilityReportExporter.swift */,
 				DCFI00000000000000000106 /* CameraCapabilityScanner.swift */,
+				DCFI00000000000000000108 /* CameraSessionController.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -233,6 +239,8 @@
 				DCBF00000000000000000103 /* CameraModels.swift in Sources */,
 				DCBF00000000000000000104 /* CapabilityReportExporter.swift in Sources */,
 				DCBF00000000000000000105 /* CameraCapabilityScanner.swift in Sources */,
+				DCBF00000000000000000106 /* PreviewView.swift in Sources */,
+				DCBF00000000000000000107 /* CameraSessionController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

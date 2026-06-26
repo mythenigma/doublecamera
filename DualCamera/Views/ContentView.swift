@@ -2,6 +2,7 @@ import AVFoundation
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var sessionController = CameraSessionController()
     @State private var report: CameraCapabilityReport?
     @State private var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @State private var selectedDeviceID: String?
@@ -13,8 +14,10 @@ struct ContentView: View {
                     header
                     permissionPanel
                     summaryPanel
+                    liveCapturePanel
                     devicePanel
                     multiCamPanel
+                    captureResultsPanel
                     diagnosticsPanel
                 }
                 .padding()
@@ -110,6 +113,63 @@ struct ContentView: View {
         }
     }
 
+    private var liveCapturePanel: some View {
+        panel("Live Capture") {
+            VStack(alignment: .leading, spacing: 12) {
+                PreviewView(session: sessionController.session)
+                    .frame(height: 280)
+                    .frame(maxWidth: .infinity)
+                    .background(.black)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                Text(selectedDeviceLabel)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .textSelection(.enabled)
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 8) {
+                    Button("Start Preview") {
+                        startSelectedCamera()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selectedDeviceID == nil || authorizationStatus != .authorized)
+
+                    Button("Stop") {
+                        sessionController.stop()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!sessionController.isRunning)
+
+                    Button("Photo") {
+                        sessionController.capturePhoto()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!sessionController.isRunning)
+
+                    Button(sessionController.isRecording ? "Stop Rec" : "Record") {
+                        if sessionController.isRecording {
+                            sessionController.stopRecording()
+                        } else {
+                            sessionController.startRecording()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!sessionController.isRunning)
+                }
+
+                HStack {
+                    statusDot(isOK: sessionController.isRunning)
+                    Text(sessionController.isRunning ? "session running" : "session stopped")
+                    Spacer()
+                    Text(sessionController.isRecording ? "recording" : "idle")
+                        .foregroundStyle(sessionController.isRecording ? .red : .secondary)
+                }
+                .font(.caption.monospaced())
+            }
+        }
+    }
+
     private var multiCamPanel: some View {
         panel("MultiCam Sets") {
             if let report, report.supportedMultiCamSets.isEmpty {
@@ -136,9 +196,33 @@ struct ContentView: View {
         }
     }
 
+    private var captureResultsPanel: some View {
+        panel("Capture Results") {
+            if sessionController.captures.isEmpty {
+                Text(sessionController.lastOutputPath ?? "No photos or videos captured yet.")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(sessionController.captures) { capture in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(capture.kind.uppercased())  \(capture.date.formatted(date: .omitted, time: .standard))")
+                                .font(.caption.monospaced())
+                            Text(capture.outputPath)
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var diagnosticsPanel: some View {
         panel("Diagnostics") {
-            let diagnostics = report?.diagnostics ?? []
+            let diagnostics = sessionController.diagnostics + (report?.diagnostics ?? [])
             if diagnostics.isEmpty {
                 Text("No diagnostics.")
                     .foregroundStyle(.secondary)
@@ -196,6 +280,21 @@ struct ContentView: View {
                 Text(device.deviceType)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
+
+                HStack {
+                    Button(selectedDeviceID == device.id ? "Selected" : "Select") {
+                        selectedDeviceID = device.id
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("Start") {
+                        selectedDeviceID = device.id
+                        sessionController.startSingleCamera(deviceID: device.id)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(authorizationStatus != .authorized)
+                }
+                .font(.caption)
             }
         }
         .padding(10)
@@ -267,6 +366,26 @@ struct ContentView: View {
         }
 
         report = CameraCapabilityScanner().scan()
+        if selectedDeviceID == nil {
+            selectedDeviceID = report?.devices.first?.id
+        }
+    }
+
+    private var selectedDeviceLabel: String {
+        guard let selectedDeviceID else {
+            return "No camera selected."
+        }
+
+        let device = report?.devices.first { $0.id == selectedDeviceID }
+        return "Selected: \(device?.localizedName ?? "Unknown")  \(selectedDeviceID)"
+    }
+
+    private func startSelectedCamera() {
+        guard let selectedDeviceID else {
+            return
+        }
+
+        sessionController.startSingleCamera(deviceID: selectedDeviceID)
     }
 }
 
