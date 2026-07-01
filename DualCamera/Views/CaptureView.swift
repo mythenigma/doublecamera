@@ -1,21 +1,21 @@
 import AVFoundation
-import AVKit
 import SwiftUI
+import UIKit
 
 /// The consumer-facing dual-camera recording screen.
 struct CaptureView: View {
     @StateObject private var controller = DualCameraController()
+    @ObservedObject private var loc = LocalizationManager.shared
 
     @State private var cameraAuthorized = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
     @State private var showPicker = false
-    @State private var showConsole = false
+    @State private var showSettings = false
     @State private var didConfigureOnce = false
 
     @State private var focusIndicator: FocusIndicator?
     @State private var exposureDragValue: Float = 0
     @State private var focusDismissTask: Task<Void, Never>?
     @State private var showMoreControls = false
-    @State private var showCapturePreview = false
 
     private struct FocusIndicator: Identifiable {
         let id = UUID()
@@ -83,27 +83,7 @@ struct CaptureView: View {
         }
         .preferredColorScheme(.dark)
         .task { await bootstrap() }
-        .sheet(isPresented: $showConsole) { ContentView() }
-        .sheet(isPresented: $showCapturePreview) { capturePreviewSheet }
-    }
-
-    @ViewBuilder
-    private var capturePreviewSheet: some View {
-        if let url = controller.lastCaptureURL {
-            if controller.lastCaptureIsVideo {
-                VideoPlayer(player: AVPlayer(url: url))
-                    .ignoresSafeArea()
-            } else if let uiImage = UIImage(contentsOfFile: url.path) {
-                ZStack {
-                    Color.black.ignoresSafeArea()
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFit()
-                }
-            } else {
-                Text("无法加载图片").foregroundStyle(.white)
-            }
-        }
+        .sheet(isPresented: $showSettings) { SettingsView() }
     }
 
     // MARK: - Orientation layouts
@@ -162,7 +142,7 @@ struct CaptureView: View {
     }
 
     private var gearButton: some View {
-        Button { showConsole = true } label: {
+        Button { showSettings = true } label: {
             Image(systemName: "gearshape")
                 .font(.system(size: 18))
                 .foregroundStyle(.white)
@@ -204,16 +184,16 @@ struct CaptureView: View {
         HStack(spacing: 16) {
             moreControlItem(
                 topText: controller.quality.label,
-                label: "画质",
+                label: loc.t(.qualityLabel),
                 active: controller.quality == .uhd4k,
                 warning: controller.quality == .uhd4k && !controller.fourKAvailable
             ) {
                 controller.setQuality(controller.quality == .hd ? .uhd4k : .hd)
             }
-            moreControlItem(topText: "60", label: "帧率", active: false, warning: false, action: {})
+            moreControlItem(topText: "60", label: loc.t(.fpsLabel), active: false, warning: false, action: {})
             moreToggleItem(
                 icon: "rectangle.on.rectangle",
-                label: "竖横同拍",
+                label: loc.t(.dualOrientationLabel),
                 active: controller.dualOrientation,
                 disabled: controller.isRecording || controller.mode == .dualFile
             ) {
@@ -316,11 +296,11 @@ struct CaptureView: View {
                                 .font(.system(size: 40))
                                 .foregroundStyle(.white.opacity(0.6))
                             Text(cameraAuthorized
-                                 ? "此设备不支持双摄像头同时录制"
-                                 : "需要相机权限")
+                                 ? loc.t(.errorNoMultiCam)
+                                 : loc.t(.errorNeedPermission))
                                 .foregroundStyle(.white.opacity(0.8))
                             if !cameraAuthorized {
-                                Button("授予权限") { Task { await requestAccess() } }
+                                Button(loc.t(.buttonGrantPermission)) { Task { await requestAccess() } }
                                     .buttonStyle(.borderedProminent)
                                     .tint(.red)
                             }
@@ -361,8 +341,8 @@ struct CaptureView: View {
     /// In 双录 mode, label each half so it reads as two independent files.
     private var dualFileMarkers: some View {
         GeometryReader { geo in
-            let tag1 = fileTag("文件 ①").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            let tag2 = fileTag("文件 ②").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            let tag1 = fileTag(loc.t(.fileTag1)).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            let tag2 = fileTag(loc.t(.fileTag2)).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             if geo.size.width > geo.size.height {
                 HStack(spacing: 0) { tag1; tag2 }
             } else {
@@ -398,8 +378,6 @@ struct CaptureView: View {
         }
         .padding(4)
         .background(.ultraThinMaterial, in: Capsule())
-        .disabled(controller.isRecording)
-        .opacity(controller.isRecording ? 0.5 : 1)
     }
 
     /// Yellow focus/exposure box shown at the tapped point, with a vertical
@@ -444,7 +422,7 @@ struct CaptureView: View {
 
     /// Shown briefly while both lenses' auto-exposure settles after start/switch.
     private var warmupIndicator: some View {
-        Text("对焦中…")
+        Text(loc.t(.warmupIndicator))
             .font(.caption2.weight(.semibold))
             .foregroundStyle(.white)
             .padding(.horizontal, 10)
@@ -590,7 +568,7 @@ struct CaptureView: View {
 
     private var thumbnail: some View {
         Button {
-            showCapturePreview = true
+            openPhotosApp()
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -644,6 +622,13 @@ struct CaptureView: View {
                 .background(.ultraThinMaterial, in: Circle())
         }
         .disabled(controller.isRecording)
+    }
+
+    /// Jumps straight to the system Photos app, same as the stock Camera
+    /// app's thumbnail button — no in-app preview screen.
+    private func openPhotosApp() {
+        guard let url = URL(string: "photos-redirect://") else { return }
+        UIApplication.shared.open(url)
     }
 
     // MARK: - Focus / exposure

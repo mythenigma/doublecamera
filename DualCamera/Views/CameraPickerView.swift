@@ -10,6 +10,7 @@ struct CameraPickerView: View {
     let onClose: () -> Void
 
     @State private var selection: [String] = []
+    @ObservedObject private var loc = LocalizationManager.shared
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
@@ -47,7 +48,7 @@ struct CameraPickerView: View {
 
     private var header: some View {
         ZStack {
-            Text("选择您的相机")
+            Text(loc.t(.pickerTitle))
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.white)
 
@@ -117,7 +118,7 @@ struct CameraPickerView: View {
 
     private var confirmBar: some View {
         Button(action: confirm) {
-            Text(selection.count == 2 ? "开始" : "请选择 2 个相机 (\(selection.count)/2)")
+            Text(selection.count == 2 ? loc.t(.pickerStart) : loc.t(.pickerSelectN, "\(selection.count)"))
                 .font(.headline)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)

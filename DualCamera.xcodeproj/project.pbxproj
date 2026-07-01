@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DCBF0000000000000000010F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000116 /* Assets.xcassets */; };
+		DCBF00000000000000000110 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000117 /* AppLanguage.swift */; };
+		DCBF00000000000000000111 /* LocKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000118 /* LocKey.swift */; };
+		DCBF00000000000000000112 /* LocalizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000119 /* LocalizationManager.swift */; };
+		DCBF00000000000000000113 /* Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI0000000000000000011A /* Strings.swift */; };
+		DCBF00000000000000000114 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI0000000000000000011B /* SettingsView.swift */; };
 		DCBF00000000000000000101 /* DualCameraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000101 /* DualCameraApp.swift */; };
 		DCBF00000000000000000102 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000102 /* ContentView.swift */; };
 		DCBF00000000000000000103 /* CameraModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000104 /* CameraModels.swift */; };
@@ -41,6 +47,12 @@
 		DCFI00000000000000000101 /* DualCameraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualCameraApp.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000103 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DCFI00000000000000000116 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DCFI00000000000000000117 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000118 /* LocKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocKey.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000119 /* LocalizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationManager.swift; sourceTree = "<group>"; };
+		DCFI0000000000000000011A /* Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Strings.swift; sourceTree = "<group>"; };
+		DCFI0000000000000000011B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000104 /* CameraModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraModels.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000105 /* CapabilityReportExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityReportExporter.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000106 /* CameraCapabilityScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCapabilityScanner.swift; sourceTree = "<group>"; };
@@ -91,6 +103,7 @@
 				DCGR00000000000000000112 /* Views */,
 				DCGR00000000000000000113 /* Models */,
 				DCGR00000000000000000114 /* Services */,
+				DCGR00000000000000000115 /* Localization */,
 			);
 			path = DualCamera;
 			sourceTree = "<group>";
@@ -100,6 +113,7 @@
 			children = (
 				DCFI00000000000000000101 /* DualCameraApp.swift */,
 				DCFI00000000000000000103 /* Info.plist */,
+				DCFI00000000000000000116 /* Assets.xcassets */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -112,6 +126,7 @@
 				DCFI00000000000000000112 /* DualPreviewView.swift */,
 				DCFI00000000000000000113 /* CameraPickerView.swift */,
 				DCFI00000000000000000114 /* CaptureView.swift */,
+				DCFI0000000000000000011B /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -123,6 +138,17 @@
 				DCFI00000000000000000109 /* CaptureSessionModels.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		DCGR00000000000000000115 /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				DCFI00000000000000000117 /* AppLanguage.swift */,
+				DCFI00000000000000000118 /* LocKey.swift */,
+				DCFI00000000000000000119 /* LocalizationManager.swift */,
+				DCFI0000000000000000011A /* Strings.swift */,
+			);
+			path = Localization;
 			sourceTree = "<group>";
 		};
 		DCGR00000000000000000114 /* Services */ = {
@@ -238,6 +264,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DCBF0000000000000000010F /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -266,6 +293,11 @@
 				DCBF00000000000000000109 /* DualStreamRecorder.swift in Sources */,
 				DCBF0000000000000000010A /* DualCameraController.swift in Sources */,
 				DCBF0000000000000000010E /* DualFrameCompositor.swift in Sources */,
+				DCBF00000000000000000110 /* AppLanguage.swift in Sources */,
+				DCBF00000000000000000111 /* LocKey.swift in Sources */,
+				DCBF00000000000000000112 /* LocalizationManager.swift in Sources */,
+				DCBF00000000000000000113 /* Strings.swift in Sources */,
+				DCBF00000000000000000114 /* SettingsView.swift in Sources */,
 				DCBF0000000000000000010B /* DualPreviewView.swift in Sources */,
 				DCBF0000000000000000010C /* CameraPickerView.swift in Sources */,
 				DCBF0000000000000000010D /* CaptureView.swift in Sources */,

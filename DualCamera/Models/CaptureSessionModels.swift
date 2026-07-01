@@ -14,16 +14,18 @@ enum CaptureMode: String, CaseIterable, Identifiable {
 
     /// Localized label shown in the mode bar.
     var title: String {
+        let loc = LocalizationManager.shared
         switch self {
-        case .split: return "分割"
-        case .pip: return "画中画"
-        case .dualFile: return "双录"
+        case .split: return loc.t(.modeSplit)
+        case .pip: return loc.t(.modePip)
+        case .dualFile: return loc.t(.modeDualFile)
         }
     }
 
     /// Short description of what this mode writes to disk.
     var outputDescription: String {
-        producesComposite ? "合成 1 个文件" : "独立 2 个文件"
+        let loc = LocalizationManager.shared
+        return producesComposite ? loc.t(.outputComposite) : loc.t(.outputDualFile)
     }
 
     var systemImage: String {
@@ -99,15 +101,16 @@ struct CameraOption: Identifiable, Equatable {
 
     /// Human friendly lens name derived from device type and position.
     static func displayName(for device: AVCaptureDevice) -> String {
+        let loc = LocalizationManager.shared
         switch device.deviceType {
         case .builtInUltraWideCamera:
-            return "Ultra Wide"
+            return loc.t(.lensUltraWide)
         case .builtInTelephotoCamera:
-            return "Tele"
+            return loc.t(.lensTele)
         case .builtInWideAngleCamera:
-            return device.position == .front ? "Selfie" : "Wide"
+            return device.position == .front ? loc.t(.lensSelfie) : loc.t(.lensWide)
         default:
-            return device.position == .front ? "Selfie" : device.localizedName
+            return device.position == .front ? loc.t(.lensSelfie) : device.localizedName
         }
     }
 }

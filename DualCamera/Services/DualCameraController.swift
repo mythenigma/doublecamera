@@ -184,7 +184,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
 
     private func configureLocked(backID: String?, frontID: String?) {
         guard AVCaptureMultiCamSession.isMultiCamSupported else {
-            self.report("此设备不支持双摄像头同时录制 (MultiCam unsupported).")
+            self.report(LocalizationManager.shared.t(.errMultiCamUnsupported))
             return
         }
 
@@ -205,14 +205,14 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         guard let backDevice = device(for: backID, fallback: .back),
               let frontDevice = device(for: frontID, fallback: .front) else {
             session.commitConfiguration()
-            report("找不到可用的前后摄像头。")
+            report(LocalizationManager.shared.t(.errNoCamerasFound))
             return
         }
 
         guard areMultiCamCompatible(backDevice.uniqueID, frontDevice.uniqueID) else {
             session.commitConfiguration()
             DispatchQueue.main.async { self.isRunning = false }
-            report("这两个摄像头不能同时运行，请重新选择一对。")
+            report(LocalizationManager.shared.t(.errIncompatiblePair))
             return
         }
 
@@ -221,7 +221,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             let frontInput = try AVCaptureDeviceInput(device: frontDevice)
             guard session.canAddInput(backInput), session.canAddInput(frontInput) else {
                 session.commitConfiguration()
-                report("无法添加摄像头输入。")
+                report(LocalizationManager.shared.t(.errCannotAddInput))
                 return
             }
             session.addInputWithNoConnections(backInput)
@@ -271,7 +271,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             }
         } catch {
             session.commitConfiguration()
-            report("配置失败: \(error.localizedDescription)")
+            report(LocalizationManager.shared.t(.errConfigFailed, error.localizedDescription))
         }
     }
 
@@ -379,7 +379,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         guard let mic = AVCaptureDevice.default(for: .audio),
               let input = try? AVCaptureDeviceInput(device: mic),
               session.canAddInput(input) else {
-            report("麦克风不可用，将录制无声视频。")
+            report(LocalizationManager.shared.t(.errMicUnavailable))
             return
         }
         session.addInputWithNoConnections(input)
@@ -428,7 +428,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             device.activeFormat = chosen
             device.unlockForConfiguration()
         } catch {
-            report("无法设置 \(device.localizedName) 的画质格式: \(error.localizedDescription)")
+            report(LocalizationManager.shared.t(.errFormatFailed, device.localizedName, error.localizedDescription))
             return false
         }
 
@@ -488,7 +488,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             presets.append(ZoomPreset(label: "2×", deviceID: wide.uniqueID, zoomFactor: 2))
         }
         if let tele = backs.first(where: { $0.deviceType == .builtInTelephotoCamera }), pairable(tele.uniqueID) {
-            presets.append(ZoomPreset(label: "长焦", deviceID: tele.uniqueID, zoomFactor: 1))
+            presets.append(ZoomPreset(label: LocalizationManager.shared.t(.lensTele), deviceID: tele.uniqueID, zoomFactor: 1))
         }
 
         let active = presets.first { $0.deviceID == currentBackID && $0.zoomFactor == 1 } ?? presets.first { $0.deviceID == currentBackID }
@@ -497,7 +497,10 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
 
     func selectBackZoom(_ preset: ZoomPreset) {
         sessionQueue.async {
-            guard !self.recorder.isRecording else { return }
+            // Allowed during recording, matching the system camera: same-lens
+            // zoom is a plain factor change, and cross-lens switches briefly
+            // pause the session (a short gap in the recorded frames) but never
+            // corrupt or stop the active recording.
 
             // Same physical lens → just adjust digital zoom, no reconfiguration.
             if self.backInput?.device.uniqueID == preset.deviceID {
@@ -518,7 +521,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 let input = try AVCaptureDeviceInput(device: device)
                 guard self.session.canAddInput(input) else {
                     self.session.commitConfiguration()
-                    self.report("无法切换到该镜头。")
+                    self.report(LocalizationManager.shared.t(.errLensSwitchFailedGeneric))
                     return
                 }
                 self.session.addInputWithNoConnections(input)
@@ -546,7 +549,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 }
             } catch {
                 self.session.commitConfiguration()
-                self.report("切换镜头失败: \(error.localizedDescription)")
+                self.report(LocalizationManager.shared.t(.errLensSwitchFailed, error.localizedDescription))
             }
         }
     }
@@ -558,7 +561,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             device.videoZoomFactor = max(device.minAvailableVideoZoomFactor, min(factor, device.maxAvailableVideoZoomFactor))
             device.unlockForConfiguration()
         } catch {
-            report("无法设置变焦: \(error.localizedDescription)")
+            report(LocalizationManager.shared.t(.errZoomFailed, error.localizedDescription))
         }
     }
 
@@ -575,7 +578,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             device.autoFocusRangeRestriction = device.deviceType == .builtInUltraWideCamera ? .near : .none
             device.unlockForConfiguration()
         } catch {
-            report("无法设置对焦范围: \(error.localizedDescription)")
+            report(LocalizationManager.shared.t(.errFocusRangeFailed, error.localizedDescription))
         }
     }
 
@@ -606,7 +609,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 let applied = device.torchMode
                 DispatchQueue.main.async { self.torchMode = applied }
             } catch {
-                self.report("无法切换手电筒: \(error.localizedDescription)")
+                self.report(LocalizationManager.shared.t(.errTorchFailed, error.localizedDescription))
             }
         }
     }
@@ -675,7 +678,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 }
                 device.unlockForConfiguration()
             } catch {
-                self.report("对焦失败: \(error.localizedDescription)")
+                self.report(LocalizationManager.shared.t(.errFocusFailed, error.localizedDescription))
             }
         }
     }
@@ -698,7 +701,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 device.setExposureTargetBias(clamped, completionHandler: nil)
                 device.unlockForConfiguration()
             } catch {
-                self.report("曝光调节失败: \(error.localizedDescription)")
+                self.report(LocalizationManager.shared.t(.errExposureFailed, error.localizedDescription))
             }
         }
     }
@@ -753,7 +756,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                         self.startDurationTimer()
                     }
                 } catch {
-                    self.report("无法开始录制: \(error.localizedDescription)")
+                    self.report(LocalizationManager.shared.t(.errRecordStartFailed, error.localizedDescription))
                 }
             }
         }
@@ -797,7 +800,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
     private func saveToPhotoLibrary(url: URL, isVideo: Bool) {
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             guard status == .authorized || status == .limited else {
-                self.report("没有相册写入权限，本次拍摄仅保存在应用内。")
+                self.report(LocalizationManager.shared.t(.errPhotoLibraryPermission))
                 return
             }
             PHPhotoLibrary.shared().performChanges({
@@ -808,7 +811,8 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 }
             }) { success, error in
                 if !success {
-                    self.report("保存到相册失败: \(error?.localizedDescription ?? "未知错误")")
+                    let loc = LocalizationManager.shared
+                    self.report(loc.t(.errPhotoLibrarySaveFailed, error?.localizedDescription ?? loc.t(.errUnknown)))
                 }
             }
         }
@@ -855,7 +859,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 savedURLs.append(url)
                 if thumbnailImage == nil { thumbnailImage = UIImage(cgImage: cgImage) }
             } catch {
-                report("拍照保存失败: \(error.localizedDescription)")
+                report(LocalizationManager.shared.t(.errPhotoSaveFailed, error.localizedDescription))
             }
         }
 
@@ -871,7 +875,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         }
 
         guard let firstURL = savedURLs.first else {
-            report("拍照失败：无法保存图片。")
+            report(LocalizationManager.shared.t(.errPhotoSaveFailedGeneric))
             return
         }
 
