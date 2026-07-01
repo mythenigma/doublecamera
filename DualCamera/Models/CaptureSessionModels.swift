@@ -1,0 +1,113 @@
+import AVFoundation
+import Foundation
+
+/// How the two camera feeds are composed for preview and recording.
+enum CaptureMode: String, CaseIterable, Identifiable {
+    /// 分割 — two feeds stacked, composed into a single file.
+    case split
+    /// 画中画 — primary feed full-screen with the secondary feed in an overlay, single file.
+    case pip
+    /// 双文件 — each camera records to its own independent file.
+    case dualFile
+
+    var id: String { rawValue }
+
+    /// Localized label shown in the mode bar.
+    var title: String {
+        switch self {
+        case .split: return "分割"
+        case .pip: return "画中画"
+        case .dualFile: return "双录"
+        }
+    }
+
+    /// Short description of what this mode writes to disk.
+    var outputDescription: String {
+        producesComposite ? "合成 1 个文件" : "独立 2 个文件"
+    }
+
+    var systemImage: String {
+        switch self {
+        case .split: return "rectangle.split.1x2"
+        case .pip: return "pip"
+        case .dualFile: return "square.on.square"
+        }
+    }
+
+    /// True when the two feeds are flattened into one composed output file.
+    var producesComposite: Bool {
+        self != .dualFile
+    }
+}
+
+/// Recording resolution tier, surfaced by the top-bar quality badge.
+enum VideoQuality: String, CaseIterable, Identifiable {
+    case hd
+    case uhd4k
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .hd: return "HD"
+        case .uhd4k: return "4K"
+        }
+    }
+
+    /// Long edge of the encoded frame (portrait height / landscape width).
+    var longEdge: CGFloat {
+        switch self {
+        case .hd: return 1920
+        case .uhd4k: return 3840
+        }
+    }
+
+    /// Short edge of the encoded frame (portrait width / landscape height).
+    var shortEdge: CGFloat {
+        switch self {
+        case .hd: return 1080
+        case .uhd4k: return 2160
+        }
+    }
+
+    /// Sensor-format width (landscape) used when picking an `AVCaptureDevice.Format`.
+    var formatWidth: Int32 { Int32(longEdge) }
+
+    func renderSize(portrait: Bool) -> CGSize {
+        portrait
+            ? CGSize(width: shortEdge, height: longEdge)
+            : CGSize(width: longEdge, height: shortEdge)
+    }
+}
+
+/// A back-camera zoom preset shown in the zoom bar. Each maps to a physical
+/// lens plus a digital zoom factor applied on top of it.
+struct ZoomPreset: Identifiable, Equatable {
+    let label: String
+    let deviceID: String
+    let zoomFactor: CGFloat
+
+    var id: String { label }
+}
+
+/// A selectable camera lens presented in the picker grid.
+struct CameraOption: Identifiable, Equatable {
+    let id: String
+    let displayName: String
+    let position: AVCaptureDevice.Position
+    let deviceType: AVCaptureDevice.DeviceType
+
+    /// Human friendly lens name derived from device type and position.
+    static func displayName(for device: AVCaptureDevice) -> String {
+        switch device.deviceType {
+        case .builtInUltraWideCamera:
+            return "Ultra Wide"
+        case .builtInTelephotoCamera:
+            return "Tele"
+        case .builtInWideAngleCamera:
+            return device.position == .front ? "Selfie" : "Wide"
+        default:
+            return device.position == .front ? "Selfie" : device.localizedName
+        }
+    }
+}

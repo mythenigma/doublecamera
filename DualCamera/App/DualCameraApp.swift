@@ -4,7 +4,7 @@ import SwiftUI
 struct DualCameraApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            CaptureView()
         }
     }
 }

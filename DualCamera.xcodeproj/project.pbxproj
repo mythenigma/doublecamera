@@ -14,6 +14,13 @@
 		DCBF00000000000000000105 /* CameraCapabilityScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000106 /* CameraCapabilityScanner.swift */; };
 		DCBF00000000000000000106 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000107 /* PreviewView.swift */; };
 		DCBF00000000000000000107 /* CameraSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000108 /* CameraSessionController.swift */; };
+		DCBF00000000000000000108 /* CaptureSessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000109 /* CaptureSessionModels.swift */; };
+		DCBF00000000000000000109 /* DualStreamRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000110 /* DualStreamRecorder.swift */; };
+		DCBF0000000000000000010A /* DualCameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000111 /* DualCameraController.swift */; };
+		DCBF0000000000000000010B /* DualPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000112 /* DualPreviewView.swift */; };
+		DCBF0000000000000000010C /* CameraPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000113 /* CameraPickerView.swift */; };
+		DCBF0000000000000000010D /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000114 /* CaptureView.swift */; };
+		DCBF0000000000000000010E /* DualFrameCompositor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000115 /* DualFrameCompositor.swift */; };
 		DCBF00000000000000000201 /* CameraModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000201 /* CameraModelsTests.swift */; };
 		DCBF00000000000000000202 /* CapabilityReportExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000202 /* CapabilityReportExporterTests.swift */; };
 /* End PBXBuildFile section */
@@ -39,6 +46,13 @@
 		DCFI00000000000000000106 /* CameraCapabilityScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCapabilityScanner.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000107 /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000108 /* CameraSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraSessionController.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000109 /* CaptureSessionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSessionModels.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000110 /* DualStreamRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualStreamRecorder.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000111 /* DualCameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualCameraController.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000112 /* DualPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualPreviewView.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000113 /* CameraPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPickerView.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000114 /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
+		DCFI00000000000000000115 /* DualFrameCompositor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualFrameCompositor.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000201 /* CameraModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraModelsTests.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000202 /* CapabilityReportExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityReportExporterTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -95,6 +109,9 @@
 			children = (
 				DCFI00000000000000000102 /* ContentView.swift */,
 				DCFI00000000000000000107 /* PreviewView.swift */,
+				DCFI00000000000000000112 /* DualPreviewView.swift */,
+				DCFI00000000000000000113 /* CameraPickerView.swift */,
+				DCFI00000000000000000114 /* CaptureView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -103,6 +120,7 @@
 			isa = PBXGroup;
 			children = (
 				DCFI00000000000000000104 /* CameraModels.swift */,
+				DCFI00000000000000000109 /* CaptureSessionModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -113,6 +131,9 @@
 				DCFI00000000000000000105 /* CapabilityReportExporter.swift */,
 				DCFI00000000000000000106 /* CameraCapabilityScanner.swift */,
 				DCFI00000000000000000108 /* CameraSessionController.swift */,
+				DCFI00000000000000000110 /* DualStreamRecorder.swift */,
+				DCFI00000000000000000111 /* DualCameraController.swift */,
+				DCFI00000000000000000115 /* DualFrameCompositor.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -241,6 +262,13 @@
 				DCBF00000000000000000105 /* CameraCapabilityScanner.swift in Sources */,
 				DCBF00000000000000000106 /* PreviewView.swift in Sources */,
 				DCBF00000000000000000107 /* CameraSessionController.swift in Sources */,
+				DCBF00000000000000000108 /* CaptureSessionModels.swift in Sources */,
+				DCBF00000000000000000109 /* DualStreamRecorder.swift in Sources */,
+				DCBF0000000000000000010A /* DualCameraController.swift in Sources */,
+				DCBF0000000000000000010E /* DualFrameCompositor.swift in Sources */,
+				DCBF0000000000000000010B /* DualPreviewView.swift in Sources */,
+				DCBF0000000000000000010C /* CameraPickerView.swift in Sources */,
+				DCBF0000000000000000010D /* CaptureView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

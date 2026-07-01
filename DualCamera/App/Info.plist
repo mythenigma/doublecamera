@@ -43,10 +43,10 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>This internal camera console needs camera access to inspect, preview, photograph, and record camera feeds.</string>
+	<string>需要访问相机以同时预览、拍照和录制前后摄像头画面。</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This internal camera console may use microphone access when testing video recording.</string>
+	<string>需要访问麦克风以在录制视频时录入声音。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This internal camera console saves captured photos and videos for inspection.</string>
+	<string>需要访问相册以将拍摄的照片和视频保存到你的照片图库。</string>
 </dict>
 </plist>
