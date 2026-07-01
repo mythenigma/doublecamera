@@ -12,7 +12,7 @@ An iOS app that previews, records, and photographs two cameras at once — front
 - **Back-lens zoom bar** — `.5×` / `1×` / `2×` / tele, switchable even while recording
 - **Photo capture** — composed still in Split/PIP, two independent stills in Dual Rec
 - **HD / 4K quality toggle** — auto-falls-back with an on-screen warning if a lens can't hit the requested resolution in MultiCam mode
-- **竖横同拍 (Portrait + Landscape)** — optionally writes each composite recording twice, once in portrait and once in landscape, in one take
+- **Portrait + Landscape capture** — optionally writes each composite recording twice, once in portrait and once in landscape, in one take
 - **Torch** — off / auto / on, cycling like the system camera
 - **Self-timer** — 3s / 10s delayed start, works for both video and photo
 - **Tap to focus/expose** — per-lens focus + exposure point, with a draggable exposure-bias slider
@@ -54,7 +54,7 @@ docs/             Design notes for the original capability-console version
 Core pieces, if you're digging into the AVFoundation side:
 
 - `DualCameraController` — owns the `AVCaptureMultiCamSession`, both preview layers, lens switching, zoom, torch, focus/exposure, and the exposure warm-up guard
-- `DualStreamRecorder` — `AVAssetWriter`-based recorder; one composed output for Split/PIP (optionally two, for 竖横同拍), two independent outputs for Dual Rec
+- `DualStreamRecorder` — `AVAssetWriter`-based recorder; one composed output for Split/PIP (optionally two, for Portrait + Landscape capture), two independent outputs for Dual Rec
 - `DualFrameCompositor` — the actual split/PIP drawing math, shared between the recorder and still-photo capture so both look identical
 - `DualPreviewView` — hosts the two `AVCaptureVideoPreviewLayer`s, lays them out per mode/orientation, and owns the tap-to-focus / double-tap-to-swap gestures
 
