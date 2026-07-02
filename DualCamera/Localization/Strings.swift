@@ -205,12 +205,39 @@ enum Strings {
             .fr: "Échec de la capture photo — impossible d'enregistrer l'image."
         ],
 
+        // MARK: Runtime warnings
+        .warnInterrupted: [
+            .en: "Camera paused — in use by another app or a call",
+            .de: "Kamera pausiert – wird von einer anderen App oder einem Anruf verwendet",
+            .zh: "相机已暂停——被其他 App 或来电占用",
+            .ja: "カメラが一時停止中 — 他のアプリまたは通話で使用中",
+            .fr: "Caméra en pause — utilisée par une autre app ou un appel"
+        ],
+        .warnThermal: [
+            .en: "iPhone is hot — performance may be reduced",
+            .de: "iPhone ist heiß – Leistung kann reduziert sein",
+            .zh: "iPhone 温度过高——性能可能下降",
+            .ja: "iPhoneが高温です — パフォーマンスが低下する可能性があります",
+            .fr: "iPhone en surchauffe — les performances peuvent être réduites"
+        ],
+
         // MARK: Settings
         .settingsTitle: [
             .en: "Settings", .de: "Einstellungen", .zh: "设置", .ja: "設定", .fr: "Réglages"
         ],
         .settingsLanguageSection: [
             .en: "Language", .de: "Sprache", .zh: "语言", .ja: "言語", .fr: "Langue"
+        ],
+        .settingsVideoFormatSection: [
+            .en: "Video Format", .de: "Videoformat", .zh: "视频格式", .ja: "ビデオフォーマット", .fr: "Format vidéo"
+        ],
+        .formatHEVC: [
+            .en: "High Efficiency (HEVC)", .de: "High Efficiency (HEVC)", .zh: "高效 (HEVC)",
+            .ja: "高効率 (HEVC)", .fr: "Haute efficacité (HEVC)"
+        ],
+        .formatH264: [
+            .en: "Most Compatible (H.264)", .de: "Höchste Kompatibilität (H.264)", .zh: "兼容性最好 (H.264)",
+            .ja: "互換性優先 (H.264)", .fr: "Compatibilité maximale (H.264)"
         ],
         .settingsDeveloperConsole: [
             .en: "Developer Console", .de: "Entwicklerkonsole", .zh: "开发者控制台",

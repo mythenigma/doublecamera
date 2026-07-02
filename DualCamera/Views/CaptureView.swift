@@ -190,7 +190,14 @@ struct CaptureView: View {
             ) {
                 controller.setQuality(controller.quality == .hd ? .uhd4k : .hd)
             }
-            moreControlItem(topText: "60", label: loc.t(.fpsLabel), active: false, warning: false, action: {})
+            moreControlItem(
+                topText: "\(controller.frameRate.rawValue)",
+                label: loc.t(.fpsLabel),
+                active: controller.frameRate == .fps60,
+                warning: controller.frameRate == .fps60 && !controller.fpsAchieved
+            ) {
+                controller.setFrameRate(controller.frameRate == .fps30 ? .fps60 : .fps30)
+            }
             moreToggleItem(
                 icon: "rectangle.on.rectangle",
                 label: loc.t(.dualOrientationLabel),
@@ -275,7 +282,9 @@ struct CaptureView: View {
                     onFocusTap: { viewPoint, devicePoint, isBack in
                         handleFocusTap(viewPoint: viewPoint, devicePoint: devicePoint, isBack: isBack)
                     },
-                    onSwap: { controller.swapCameras() }
+                    onSwap: { controller.swapCameras() },
+                    onPinchBegan: { controller.beginPinchZoom() },
+                    onPinchChanged: { controller.updatePinchZoom(scale: $0) }
                 )
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay(alignment: .topLeading) { outputChip }
@@ -285,7 +294,15 @@ struct CaptureView: View {
                         if controller.zoomPresets.count > 1 { zoomBar.padding(.bottom, 14) }
                     }
                     .overlay(alignment: .bottomLeading) { swapButton }
-                    .overlay(alignment: .top) { if controller.isWarmingUp { warmupIndicator } }
+                    .overlay(alignment: .top) {
+                        if controller.isInterrupted {
+                            statusBanner(loc.t(.warnInterrupted), icon: "exclamationmark.triangle.fill")
+                        } else if controller.thermalState == .serious || controller.thermalState == .critical {
+                            statusBanner(loc.t(.warnThermal), icon: "thermometer.high")
+                        } else if controller.isWarmingUp {
+                            warmupIndicator
+                        }
+                    }
                     .overlay { if let remaining = controller.countdownRemaining { countdownOverlay(remaining) } }
             } else {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -366,6 +383,14 @@ struct CaptureView: View {
     /// Back-camera zoom/lens switcher (.5× / 1× / 2× / 长焦).
     private var zoomBar: some View {
         HStack(spacing: 6) {
+            // When pinch has left the factor between presets, show it live
+            // in place of a highlighted preset, like the system camera.
+            if controller.activeZoom == nil {
+                Text(String(format: "%.1f×", controller.currentZoomFactor))
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.yellow)
+                    .frame(minWidth: 40, minHeight: 28)
+            }
             ForEach(controller.zoomPresets) { preset in
                 let active = controller.activeZoom == preset
                 Button { controller.selectBackZoom(preset) } label: {
@@ -378,6 +403,23 @@ struct CaptureView: View {
         }
         .padding(4)
         .background(.ultraThinMaterial, in: Capsule())
+    }
+
+    /// Full-width warning strip for interruption / thermal states.
+    private func statusBanner(_ text: String, icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.yellow)
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: Capsule())
+        .padding(.top, 8)
+        .transition(.opacity)
     }
 
     /// Yellow focus/exposure box shown at the tapped point, with a vertical

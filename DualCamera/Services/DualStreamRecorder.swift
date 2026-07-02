@@ -54,6 +54,8 @@ final class DualStreamRecorder {
     private var urls: [URL] = []
     private var sessionStarted = false
     private var dualFileSize = CGSize(width: 1080, height: 1920)
+    private var codec: VideoCodec = .hevc
+    private var fps: Int = 30
 
     /// Latest front frame, retained so it can be paired with the next back frame
     /// even when the synchronizer drops one side.
@@ -61,8 +63,10 @@ final class DualStreamRecorder {
 
     // MARK: - Lifecycle
 
-    func start(mode: CaptureMode, portrait: Bool, quality: VideoQuality, dualOrientation: Bool) throws -> [URL] {
+    func start(mode: CaptureMode, portrait: Bool, quality: VideoQuality, dualOrientation: Bool, codec: VideoCodec, fps: Int) throws -> [URL] {
         self.mode = mode
+        self.codec = codec
+        self.fps = fps
         sessionStarted = false
         latestFront = nil
         compositeTargets = []
@@ -141,15 +145,29 @@ final class DualStreamRecorder {
 
     // MARK: - Composite (split / pip)
 
+    /// Builds output settings for one video track: explicit average bitrate
+    /// scaled from resolution × frame rate, instead of AVAssetWriter defaults.
+    private func videoSettings(size: CGSize) -> [String: Any] {
+        var compression: [String: Any] = [
+            AVVideoAverageBitRateKey: codec.averageBitrate(size: size, fps: fps),
+            AVVideoExpectedSourceFrameRateKey: fps,
+            AVVideoMaxKeyFrameIntervalKey: fps * 2
+        ]
+        if codec == .h264 {
+            compression[AVVideoProfileLevelKey] = AVVideoProfileLevelH264HighAutoLevel
+        }
+        return [
+            AVVideoCodecKey: codec.avCodec,
+            AVVideoWidthKey: size.width,
+            AVVideoHeightKey: size.height,
+            AVVideoCompressionPropertiesKey: compression
+        ]
+    }
+
     private func addCompositeTarget(url: URL, size: CGSize, portrait: Bool) throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
 
-        let videoSettings: [String: Any] = [
-            AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: size.width,
-            AVVideoHeightKey: size.height
-        ]
-        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings(size: size))
         videoInput.expectsMediaDataInRealTime = true
 
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(
@@ -266,22 +284,19 @@ final class DualStreamRecorder {
     }
 
     private func makeVideoInput() -> AVAssetWriterInput {
-        let settings: [String: Any] = [
-            AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: dualFileSize.width,
-            AVVideoHeightKey: dualFileSize.height
-        ]
-        let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings(size: dualFileSize))
         input.expectsMediaDataInRealTime = true
         return input
     }
 
     private func makeAudioInput() -> AVAssetWriterInput {
+        // 48 kHz stereo AAC at 128 kbps, matching what the system camera
+        // records. The writer converts mono mic input up to stereo as needed.
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVNumberOfChannelsKey: 1,
-            AVSampleRateKey: 44_100,
-            AVEncoderBitRateKey: 64_000
+            AVNumberOfChannelsKey: 2,
+            AVSampleRateKey: 48_000,
+            AVEncoderBitRateKey: 128_000
         ]
         let input = AVAssetWriterInput(mediaType: .audio, outputSettings: settings)
         input.expectsMediaDataInRealTime = true

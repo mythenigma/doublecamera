@@ -54,9 +54,16 @@ enum LocKey: String {
     case errPhotoSaveFailed
     case errPhotoSaveFailedGeneric
 
+    // Runtime warnings
+    case warnInterrupted
+    case warnThermal
+
     // Settings
     case settingsTitle
     case settingsLanguageSection
+    case settingsVideoFormatSection
+    case formatHEVC
+    case formatH264
     case settingsDeveloperConsole
     case settingsDone
 }

@@ -42,6 +42,23 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
     /// Whether the requested 4K format was actually achievable on both lenses.
     @Published private(set) var fourKAvailable = true
 
+    /// Recording frame rate. Changing it reconfigures the active formats.
+    @Published private(set) var frameRate: FrameRate = .fps30
+
+    /// Whether the requested frame rate was actually achievable on both lenses
+    /// at the current quality (60fps × 4K MultiCam is model-dependent).
+    @Published private(set) var fpsAchieved = true
+
+    /// Live zoom factor of the back lens, driven by pinch and preset taps.
+    @Published private(set) var currentZoomFactor: CGFloat = 1
+
+    /// True while the capture session is interrupted (another app took the
+    /// camera, or a phone call). Cleared automatically when it ends.
+    @Published private(set) var isInterrupted = false
+
+    /// Mirrors ProcessInfo.thermalState so the UI can warn when hot.
+    @Published private(set) var thermalState: ProcessInfo.ThermalState = ProcessInfo.processInfo.thermalState
+
     /// 竖横同拍 — when on (composite modes only) each clip is written twice:
     /// once portrait, once landscape.
     @Published var dualOrientation = false
@@ -93,19 +110,96 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
     private var recordingStart: Date?
     private var durationTimer: Timer?
 
+    private var notificationObservers: [NSObjectProtocol] = []
+
     override init() {
         super.init()
         backPreviewLayer.videoGravity = .resizeAspectFill
         frontPreviewLayer.videoGravity = .resizeAspectFill
         backPreviewLayer.setSessionWithNoConnection(session)
         frontPreviewLayer.setSessionWithNoConnection(session)
+        // We manage AVAudioSession ourselves (bluetooth mic, background-music
+        // mixing) instead of letting the capture session overwrite it.
+        session.automaticallyConfiguresApplicationAudioSession = false
         // Needed so UIDevice.current.orientation actually updates; used below
         // to ignore rotation updates while the phone is lying flat.
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+        registerLifecycleObservers()
     }
 
     deinit {
         UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+
+    // MARK: - Interruptions, errors, thermal
+
+    /// Watches for the events the system camera handles gracefully and we
+    /// previously ignored: another app grabbing the camera, phone calls,
+    /// runtime session errors, and thermal pressure.
+    private func registerLifecycleObservers() {
+        let center = NotificationCenter.default
+
+        notificationObservers = [
+            center.addObserver(forName: AVCaptureSession.wasInterruptedNotification, object: session, queue: .main) { [weak self] _ in
+                guard let self else { return }
+                self.isInterrupted = true
+                // Finish the file cleanly instead of leaving a corrupt clip.
+                if self.isRecording { self.stopRecording() }
+            },
+            center.addObserver(forName: AVCaptureSession.interruptionEndedNotification, object: session, queue: .main) { [weak self] _ in
+                self?.isInterrupted = false
+            },
+            center.addObserver(forName: AVCaptureSession.runtimeErrorNotification, object: session, queue: .main) { [weak self] note in
+                guard let self else { return }
+                if let error = note.userInfo?[AVCaptureSessionErrorKey] as? AVError {
+                    self.report(error.localizedDescription)
+                }
+                // Media-services resets stop the session; try to bring it back.
+                self.sessionQueue.async {
+                    if !self.session.isRunning {
+                        self.session.startRunning()
+                        let running = self.session.isRunning
+                        DispatchQueue.main.async { self.isRunning = running }
+                    }
+                }
+            },
+            center.addObserver(forName: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance(), queue: .main) { [weak self] note in
+                guard let self,
+                      let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+                // Incoming call while recording: save what we have.
+                if self.isRecording { self.stopRecording() }
+            },
+            center.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+                guard let self else { return }
+                let state = ProcessInfo.processInfo.thermalState
+                self.thermalState = state
+                // At critical pressure, stop recording so the clip is saved
+                // before the system kills the camera outright.
+                if state == .critical && self.isRecording {
+                    self.stopRecording()
+                }
+            }
+        ]
+    }
+
+    /// Configures the shared audio session for video recording: bluetooth
+    /// microphones allowed, and the user's background music keeps playing
+    /// instead of being killed the moment the camera opens.
+    private func configureAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .videoRecording,
+                options: [.mixWithOthers, .allowBluetoothHFP, .allowBluetoothA2DP]
+            )
+            try audioSession.setActive(true)
+        } catch {
+            // Not fatal: capture still works with the default session.
+            report(LocalizationManager.shared.t(.errMicUnavailable))
+        }
     }
 
     // MARK: - Discovery
@@ -229,11 +323,12 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             self.backInput = backInput
             self.frontInput = frontInput
 
-            let backAchieved = applyBestFormat(to: backDevice, quality: quality)
-            let frontAchieved = applyBestFormat(to: frontDevice, quality: quality)
+            let backResult = applyBestFormat(to: backDevice, quality: quality, fps: frameRate)
+            let frontResult = applyBestFormat(to: frontDevice, quality: quality, fps: frameRate)
             let requestedQuality = quality
             DispatchQueue.main.async {
-                self.fourKAvailable = requestedQuality != .uhd4k || (backAchieved && frontAchieved)
+                self.fourKAvailable = requestedQuality != .uhd4k || (backResult.widthOK && frontResult.widthOK)
+                self.fpsAchieved = backResult.fpsOK && frontResult.fpsOK
             }
 
             applyMacroFocusIfNeeded(to: backDevice)
@@ -246,6 +341,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             backDataConnection = try connectCamera(input: backInput, device: backDevice, previewLayer: backPreviewLayer, output: backVideoOutput, mirror: backDevice.position == .front)
             frontDataConnection = try connectCamera(input: frontInput, device: frontDevice, previewLayer: frontPreviewLayer, output: frontVideoOutput, mirror: frontDevice.position == .front)
 
+            configureAudioSession()
             configureAudio()
 
             session.commitConfiguration()
@@ -302,6 +398,12 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         guard session.canAddConnection(dataConnection) else { return nil }
         session.addConnection(dataConnection)
         applyOrientation(dataConnection, mirror: mirror)
+        // Stabilize the recorded frames (preview stays unstabilized, like the
+        // system camera — stabilized preview would feel laggy). `.auto` lets
+        // the system pick the best mode the active format supports.
+        if dataConnection.isVideoStabilizationSupported {
+            dataConnection.preferredVideoStabilizationMode = .auto
+        }
         return dataConnection
     }
 
@@ -405,34 +507,47 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         }
     }
 
-    /// Sets the device to the best MultiCam-compatible format for `quality`.
-    /// Returns true when the format reaches (or exceeds) the requested width.
+    /// Sets the device to the best MultiCam-compatible format for `quality`
+    /// and `fps`, then locks the frame duration so the recording runs at a
+    /// constant frame rate. Resolution wins over frame rate when the hardware
+    /// can't do both (e.g. 4K60 dual-cam on older models).
     @discardableResult
-    private func applyBestFormat(to device: AVCaptureDevice, quality: VideoQuality) -> Bool {
+    private func applyBestFormat(to device: AVCaptureDevice, quality: VideoQuality, fps: FrameRate) -> (widthOK: Bool, fpsOK: Bool) {
         func width(_ format: AVCaptureDevice.Format) -> Int32 {
             CMVideoFormatDescriptionGetDimensions(format.formatDescription).width
         }
+        func supportsFPS(_ format: AVCaptureDevice.Format) -> Bool {
+            format.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= Double(fps.rawValue) }
+        }
 
         let multiCamFormats = device.formats.filter { $0.isMultiCamSupported }
-        guard !multiCamFormats.isEmpty else { return false }
+        guard !multiCamFormats.isEmpty else { return (false, false) }
 
         let target = quality.formatWidth
-        let chosen = multiCamFormats.last { width($0) == target }
+        let chosen = multiCamFormats.last { width($0) == target && supportsFPS($0) }
+            ?? multiCamFormats.last { width($0) == target }
+            ?? multiCamFormats.filter { width($0) <= target && supportsFPS($0) }.max { width($0) < width($1) }
             ?? multiCamFormats.filter { width($0) <= target }.max { width($0) < width($1) }
             ?? multiCamFormats.min { width($0) < width($1) }
 
-        guard let chosen else { return false }
+        guard let chosen else { return (false, false) }
+
+        let maxSupported = chosen.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30
+        let appliedFPS = min(Double(fps.rawValue), maxSupported)
+        let duration = CMTime(value: 1, timescale: CMTimeScale(appliedFPS.rounded()))
 
         do {
             try device.lockForConfiguration()
             device.activeFormat = chosen
+            device.activeVideoMinFrameDuration = duration
+            device.activeVideoMaxFrameDuration = duration
             device.unlockForConfiguration()
         } catch {
             report(LocalizationManager.shared.t(.errFormatFailed, device.localizedName, error.localizedDescription))
-            return false
+            return (false, false)
         }
 
-        return width(chosen) >= target
+        return (width(chosen) >= target, appliedFPS >= Double(fps.rawValue))
     }
 
     private func device(for id: String?, fallback position: AVCaptureDevice.Position) -> AVCaptureDevice? {
@@ -463,6 +578,14 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         DispatchQueue.main.async {
             guard self.quality != quality, !self.isRecording else { return }
             self.quality = quality
+            self.configure(backID: self.backCameraID, frontID: self.frontCameraID)
+        }
+    }
+
+    func setFrameRate(_ frameRate: FrameRate) {
+        DispatchQueue.main.async {
+            guard self.frameRate != frameRate, !self.isRecording else { return }
+            self.frameRate = frameRate
             self.configure(backID: self.backCameraID, frontID: self.frontCameraID)
         }
     }
@@ -503,9 +626,14 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             // corrupt or stop the active recording.
 
             // Same physical lens → just adjust digital zoom, no reconfiguration.
+            // Ramped so the transition glides like the system camera instead
+            // of snapping.
             if self.backInput?.device.uniqueID == preset.deviceID {
-                self.setZoomFactor(preset.zoomFactor, on: self.backInput?.device)
-                DispatchQueue.main.async { self.activeZoom = preset }
+                self.setZoomFactor(preset.zoomFactor, on: self.backInput?.device, animated: true)
+                DispatchQueue.main.async {
+                    self.activeZoom = preset
+                    self.currentZoomFactor = preset.zoomFactor
+                }
                 return
             }
 
@@ -526,7 +654,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 }
                 self.session.addInputWithNoConnections(input)
                 self.backInput = input
-                self.applyBestFormat(to: device, quality: self.quality)
+                self.applyBestFormat(to: device, quality: self.quality, fps: self.frameRate)
                 self.backDataConnection = try self.connectCamera(
                     input: input, device: device, previewLayer: self.backPreviewLayer,
                     output: self.backVideoOutput, mirror: device.position == .front
@@ -544,6 +672,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                 DispatchQueue.main.async {
                     self.backCameraID = device.uniqueID
                     self.activeZoom = preset
+                    self.currentZoomFactor = preset.zoomFactor
                     self.isTorchAvailable = torchAvailable
                     self.torchMode = .off
                 }
@@ -554,14 +683,59 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         }
     }
 
-    private func setZoomFactor(_ factor: CGFloat, on device: AVCaptureDevice?) {
+    private func setZoomFactor(_ factor: CGFloat, on device: AVCaptureDevice?, animated: Bool = false) {
         guard let device else { return }
+        let clamped = max(device.minAvailableVideoZoomFactor, min(factor, device.maxAvailableVideoZoomFactor))
         do {
             try device.lockForConfiguration()
-            device.videoZoomFactor = max(device.minAvailableVideoZoomFactor, min(factor, device.maxAvailableVideoZoomFactor))
+            if animated {
+                device.ramp(toVideoZoomFactor: clamped, withRate: 8)
+            } else {
+                device.videoZoomFactor = clamped
+            }
             device.unlockForConfiguration()
         } catch {
             report(LocalizationManager.shared.t(.errZoomFailed, error.localizedDescription))
+        }
+    }
+
+    // MARK: - Pinch zoom
+
+    /// Zoom factor at the moment the pinch began; pinch scale multiplies this.
+    private var pinchStartZoom: CGFloat = 1
+
+    /// Digital-zoom ceiling for pinch, mirroring the system camera's cap
+    /// rather than exposing the sensor's absurd maximum (often 100×+).
+    private let pinchMaxZoom: CGFloat = 10
+
+    func beginPinchZoom() {
+        sessionQueue.async {
+            self.pinchStartZoom = self.backInput?.device.videoZoomFactor ?? 1
+        }
+    }
+
+    func updatePinchZoom(scale: CGFloat) {
+        sessionQueue.async {
+            guard let device = self.backInput?.device else { return }
+            let target = self.pinchStartZoom * scale
+            let clamped = max(device.minAvailableVideoZoomFactor,
+                              min(target, min(device.maxAvailableVideoZoomFactor, self.pinchMaxZoom)))
+            do {
+                try device.lockForConfiguration()
+                device.videoZoomFactor = clamped
+                device.unlockForConfiguration()
+            } catch {
+                return
+            }
+
+            let deviceID = device.uniqueID
+            DispatchQueue.main.async {
+                self.currentZoomFactor = clamped
+                // Highlight a preset only when the factor lands on it exactly.
+                self.activeZoom = self.zoomPresets.first {
+                    $0.deviceID == deviceID && abs($0.zoomFactor - clamped) < 0.05
+                }
+            }
         }
     }
 
@@ -731,6 +905,8 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
     private func startRecording() {
         let mode = self.mode
         let quality = self.quality
+        let codec = VideoCodec.stored
+        let fps = self.frameRate.rawValue
         let dualOrientation = self.dualOrientation && mode.producesComposite
         // Lock the orientation for the whole clip using the preview's current,
         // already-stabilized angle (see applyPreviewAngle) rather than asking the
@@ -748,7 +924,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
 
             self.dataQueue.async {
                 do {
-                    _ = try self.recorder.start(mode: mode, portrait: portrait, quality: quality, dualOrientation: dualOrientation)
+                    _ = try self.recorder.start(mode: mode, portrait: portrait, quality: quality, dualOrientation: dualOrientation, codec: codec, fps: fps)
                     DispatchQueue.main.async {
                         self.recordingStart = Date()
                         self.isRecording = true

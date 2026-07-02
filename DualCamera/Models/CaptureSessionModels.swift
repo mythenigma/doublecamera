@@ -82,6 +82,63 @@ enum VideoQuality: String, CaseIterable, Identifiable {
     }
 }
 
+/// Recording frame rate, surfaced next to the quality control.
+enum FrameRate: Int, CaseIterable, Identifiable {
+    case fps30 = 30
+    case fps60 = 60
+
+    var id: Int { rawValue }
+
+    var label: String { "\(rawValue)fps" }
+
+    var frameDuration: CMTime { CMTime(value: 1, timescale: CMTimeScale(rawValue)) }
+}
+
+/// Video codec choice: HEVC produces ~40% smaller files at the same quality;
+/// H.264 plays everywhere including old Windows/Android players.
+enum VideoCodec: String, CaseIterable, Identifiable {
+    case hevc
+    case h264
+
+    var id: String { rawValue }
+
+    /// Persisted in UserDefaults under this key; read at recording start.
+    static let storageKey = "VideoCodec"
+
+    static var stored: VideoCodec {
+        UserDefaults.standard.string(forKey: storageKey).flatMap(VideoCodec.init) ?? .hevc
+    }
+
+    var avCodec: AVVideoCodecType {
+        switch self {
+        case .hevc: return .hevc
+        case .h264: return .h264
+        }
+    }
+
+    /// Rough perceptual bits-per-pixel for each codec, used to compute an
+    /// explicit average bitrate from resolution × frame rate.
+    var bitsPerPixel: Double {
+        switch self {
+        case .hevc: return 0.11
+        case .h264: return 0.17
+        }
+    }
+
+    /// Ceiling so 4K60 doesn't produce absurd file sizes.
+    var maxBitrate: Int {
+        switch self {
+        case .hevc: return 45_000_000
+        case .h264: return 60_000_000
+        }
+    }
+
+    func averageBitrate(size: CGSize, fps: Int) -> Int {
+        let pixelRate = Double(size.width * size.height) * Double(fps)
+        return min(Int(pixelRate * bitsPerPixel), maxBitrate)
+    }
+}
+
 /// A back-camera zoom preset shown in the zoom bar. Each maps to a physical
 /// lens plus a digital zoom factor applied on top of it.
 struct ZoomPreset: Identifiable, Equatable {

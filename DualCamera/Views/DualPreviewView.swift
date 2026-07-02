@@ -15,6 +15,8 @@ struct DualPreviewView: UIViewRepresentable {
     /// APIs), and whether the back (vs front) lens was tapped.
     var onFocusTap: ((_ viewPoint: CGPoint, _ devicePoint: CGPoint, _ isBack: Bool) -> Void)?
     var onSwap: (() -> Void)?
+    var onPinchBegan: (() -> Void)?
+    var onPinchChanged: ((_ scale: CGFloat) -> Void)?
 
     func makeUIView(context: Context) -> DualPreviewHostView {
         let view = DualPreviewHostView()
@@ -23,6 +25,8 @@ struct DualPreviewView: UIViewRepresentable {
         view.swapped = swapped
         view.onFocusTap = onFocusTap
         view.onSwap = onSwap
+        view.onPinchBegan = onPinchBegan
+        view.onPinchChanged = onPinchChanged
         return view
     }
 
@@ -31,6 +35,8 @@ struct DualPreviewView: UIViewRepresentable {
         uiView.swapped = swapped
         uiView.onFocusTap = onFocusTap
         uiView.onSwap = onSwap
+        uiView.onPinchBegan = onPinchBegan
+        uiView.onPinchChanged = onPinchChanged
     }
 }
 
@@ -51,6 +57,8 @@ final class DualPreviewHostView: UIView {
 
     var onFocusTap: ((_ viewPoint: CGPoint, _ devicePoint: CGPoint, _ isBack: Bool) -> Void)?
     var onSwap: (() -> Void)?
+    var onPinchBegan: (() -> Void)?
+    var onPinchChanged: ((_ scale: CGFloat) -> Void)?
 
     private weak var backLayer: AVCaptureVideoPreviewLayer?
     private weak var frontLayer: AVCaptureVideoPreviewLayer?
@@ -78,10 +86,24 @@ final class DualPreviewHostView: UIView {
         singleTap.numberOfTapsRequired = 1
         singleTap.require(toFail: doubleTap)
         addGestureRecognizer(singleTap)
+
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch))
+        addGestureRecognizer(pinch)
     }
 
     @objc private func handleDoubleTap() {
         onSwap?()
+    }
+
+    @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+        switch gesture.state {
+        case .began:
+            onPinchBegan?()
+        case .changed:
+            onPinchChanged?(gesture.scale)
+        default:
+            break
+        }
     }
 
     @objc private func handleSingleTap(_ gesture: UITapGestureRecognizer) {

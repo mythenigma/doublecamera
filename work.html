@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DualCamera 功能说明与技术架构</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #ff453a;
+    --yellow: #ffd60a;
+    --green: #30d158;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 24px 16px 80px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  header { text-align: center; padding: 32px 0 20px; }
+  header h1 { font-size: 2rem; margin-bottom: 8px; }
+  header p { color: var(--muted); }
+  .badge-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+  .badge {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 4px 14px; font-size: 0.82rem; color: var(--muted);
+  }
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 6px; margin: 28px 0 8px;
+    border-bottom: 1px solid var(--border); position: sticky; top: 0;
+    background: var(--bg); z-index: 10; padding-top: 8px;
+  }
+  .tab-btn {
+    background: none; border: none; color: var(--muted); font-size: 1rem;
+    font-family: inherit; padding: 10px 20px; cursor: pointer;
+    border-bottom: 3px solid transparent; margin-bottom: -1px;
+  }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  h2 {
+    font-size: 1.3rem; margin: 40px 0 16px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h2 .num {
+    display: inline-block; background: var(--accent); color: #fff;
+    width: 26px; height: 26px; border-radius: 8px; text-align: center;
+    line-height: 26px; font-size: 0.9rem; margin-right: 10px;
+  }
+  #tab-tech h2 .num { background: var(--blue); }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 12px;
+  }
+  .card h3 { font-size: 1.02rem; margin-bottom: 6px; }
+  .card p, .card li { color: var(--muted); font-size: 0.92rem; }
+  .card ul, .card ol { padding-left: 20px; margin-top: 6px; }
+  .card .how {
+    margin-top: 10px; padding: 10px 12px; background: rgba(255,69,58,0.08);
+    border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+    font-size: 0.9rem; color: var(--text);
+  }
+  .how b { color: var(--accent); }
+  .why {
+    margin-top: 10px; padding: 10px 12px; background: rgba(88,166,255,0.08);
+    border-left: 3px solid var(--blue); border-radius: 0 8px 8px 0;
+    font-size: 0.9rem; color: var(--text);
+  }
+  .why b { color: var(--blue); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 8px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--card); }
+  td { color: var(--muted); }
+  td code, li code, p code {
+    background: rgba(110,118,129,0.2); border-radius: 5px; padding: 1px 6px;
+    font-size: 0.85em; font-family: "SF Mono", Menlo, Consolas, monospace; color: var(--text);
+  }
+  pre {
+    background: #010409; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; font-size: 0.82rem; line-height: 1.55;
+    font-family: "SF Mono", Menlo, Consolas, monospace; margin-top: 8px;
+  }
+  pre .c { color: var(--muted); }
+  pre .k { color: var(--accent); }
+  pre .t { color: var(--blue); }
+  pre .s { color: var(--green); }
+  .flow {
+    background: #010409; border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; margin-top: 8px; font-family: "SF Mono", Menlo, monospace;
+    font-size: 0.8rem; line-height: 1.9; overflow-x: auto; white-space: pre;
+    color: var(--muted);
+  }
+  .flow b { color: var(--text); }
+  kbd {
+    background: var(--card); border: 1px solid var(--border); border-bottom-width: 2px;
+    border-radius: 6px; padding: 1px 7px; font-size: 0.85rem; font-family: inherit;
+  }
+  footer { margin-top: 48px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+  a { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📷 DualCamera</h1>
+  <p>前后双摄同时录制 · 接近原生手感 · 无水印 · 无订阅</p>
+  <div class="badge-row">
+    <span class="badge">iOS 17+</span>
+    <span class="badge">SwiftUI + AVFoundation</span>
+    <span class="badge">AVCaptureMultiCamSession</span>
+    <span class="badge">HEVC / H.264</span>
+    <span class="badge">最高 4K · 60fps</span>
+    <span class="badge">5 种语言</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('guide', this)">📖 使用指南</button>
+  <button class="tab-btn" onclick="switchTab('tech', this)">🔧 技术架构</button>
+</div>
+
+<!-- ============================================================ -->
+<!-- TAB 1: 使用指南 -->
+<!-- ============================================================ -->
+<div id="tab-guide" class="tab-content active">
+
+<h2><span class="num">1</span>快速上手</h2>
+<div class="card">
+  <ul>
+    <li>首次启动：允许 <b>相机</b> 和 <b>麦克风</b> 权限（保存时还会请求一次 <b>相册</b> 写入权限）</li>
+    <li>在「选择您的相机」页面按顺序点选 <b>2 个镜头</b>——① 是主画面，② 是副画面（画中画的小窗）。不能同时工作的镜头会自动变灰</li>
+    <li>点 <b>开始</b> 进入拍摄界面，按红色大按钮开始/停止录像，白色 📷 按钮拍照</li>
+    <li>拍完的视频和照片自动存入系统 <b>照片 App</b>，点左下角缩略图直接跳转查看</li>
+  </ul>
+</div>
+
+<h2><span class="num">2</span>三种拍摄模式</h2>
+<div class="grid">
+  <div class="card">
+    <h3>⬛ 分割</h3>
+    <p>两路画面拼在同一画面里：竖屏上下分、横屏左右分。<b>输出 1 个合成文件</b>。</p>
+  </div>
+  <div class="card">
+    <h3>🔳 画中画</h3>
+    <p>主画面全屏，副画面悬浮小窗（默认模式）。<b>输出 1 个合成文件</b>。</p>
+  </div>
+  <div class="card">
+    <h3>⏹⏹ 双录</h3>
+    <p>两个摄像头各自独立录制。<b>输出 2 个独立文件</b>（-back / -front），方便后期分别剪辑。</p>
+  </div>
+  <div class="card">
+    <h3>📐 竖横同拍</h3>
+    <p>在「•••」面板开启后，分割/画中画模式下一次录制<b>同时输出竖版 (9:16) + 横版 (16:9) 两个文件</b>——竖版发抖音，横版发 B 站，不用拍两遍。</p>
+  </div>
+</div>
+<div class="card">
+  <div class="how"><b>怎么切换：</b>底部模式栏点「分割 / 画中画 / 双录」；预览左上角的提示条会显示当前输出是 1 个还是 2 个文件。</div>
+</div>
+
+<h2><span class="num">3</span>拍摄界面全部控制</h2>
+<div class="card">
+  <table>
+    <tr><th>控制</th><th>位置</th><th>作用</th></tr>
+    <tr><td>⚙️ 设置</td><td>左上角</td><td>语言、视频格式 (HEVC/H.264)、开发者控制台</td></tr>
+    <tr><td>00:00:00 计时</td><td>顶部中央</td><td>录制时长，录制中变红</td></tr>
+    <tr><td>⚡️ 手电筒</td><td>右上胶囊</td><td>点击循环：关 → 自动 → 常亮（录像补光）</td></tr>
+    <tr><td>⏱ 延时</td><td>右上胶囊</td><td>点击循环：关 → 3秒 → 10秒（录像和拍照都生效，倒数中再按可取消）</td></tr>
+    <tr><td>••• 更多</td><td>右上胶囊</td><td>展开：画质 HD/4K · 帧率 30/60 · 竖横同拍</td></tr>
+    <tr><td>变焦条 .5×/1×/2×/长焦</td><td>预览底部</td><td>切换后置物理镜头/数码变焦，录制中可用</td></tr>
+    <tr><td>🔄 调换</td><td>预览左下</td><td>前后画面互换（谁当主画面）</td></tr>
+    <tr><td>缩略图</td><td>底部左</td><td>显示最近拍摄，点击跳转系统照片 App</td></tr>
+    <tr><td>📷 白色按钮</td><td>底部</td><td>拍照（合成模式一张，双录模式两张）</td></tr>
+    <tr><td>🔴 红色按钮</td><td>底部中央</td><td>开始 / 停止录像</td></tr>
+    <tr><td>⊞ 网格</td><td>底部右</td><td>重新选择镜头组合</td></tr>
+  </table>
+</div>
+
+<h2><span class="num">4</span>手势操作</h2>
+<div class="card">
+  <ul>
+    <li><b>单击画面</b> —— 出现黄色对焦框：点哪对哪（主画面/小窗都可以）；框旁边的 ☀️ 滑轨<b>上下拖动调节曝光</b>亮度</li>
+    <li><b>双击画面</b> —— 前后画面互换</li>
+    <li><b>双指捏合</b> —— 连续变焦（后置主镜头，最大 10×），落在档位之间时变焦条显示实时倍数如 <kbd>1.7×</kbd>，录制中也能用</li>
+  </ul>
+</div>
+
+<h2><span class="num">5</span>画质与格式</h2>
+<div class="card">
+  <table>
+    <tr><th>选项</th><th>档位</th><th>说明</th></tr>
+    <tr><td>分辨率</td><td>HD (1080p) / 4K</td><td>「•••」面板切换；机型不支持双摄 4K 时自动降级并显示 ⚠️</td></tr>
+    <tr><td>帧率</td><td>30fps / 60fps</td><td>「•••」面板切换；恒定帧率录制，达不到时自动降级并显示 ⚠️</td></tr>
+    <tr><td>编码</td><td>HEVC（默认）/ H.264</td><td>设置页切换。HEVC 文件小约 40%；H.264 兼容老设备/Windows</td></tr>
+    <tr><td>码率</td><td>自动计算</td><td>按 分辨率 × 帧率 显式设定（例：1080p30 HEVC ≈ 7Mbps，4K60 封顶 45Mbps）</td></tr>
+    <tr><td>音频</td><td>AAC 128kbps</td><td>立体声 48kHz，对齐原生相机；支持蓝牙麦克风</td></tr>
+    <tr><td>防抖</td><td>自动</td><td>录制画面自动启用系统最佳防抖模式</td></tr>
+  </table>
+</div>
+
+<h2><span class="num">6</span>可靠性保护（自动，无需操作）</h2>
+<div class="grid">
+  <div class="card">
+    <h3>📞 来电保护</h3>
+    <p>录制中来电话：自动停止并<b>完整保存</b>已录内容，不会损坏文件。</p>
+  </div>
+  <div class="card">
+    <h3>🌡 过热保护</h3>
+    <p>温度偏高时顶部显示警告；达到临界温度自动停录保片。</p>
+  </div>
+  <div class="card">
+    <h3>⏸ 占用提示</h3>
+    <p>相机被其他 App 抢占时顶部横幅提示，恢复后自动继续预览。</p>
+  </div>
+  <div class="card">
+    <h3>🌗 曝光预热</h3>
+    <p>刚启动/切镜头时短暂显示「对焦中…」并锁定快门，避免录进一段黑屏渐亮的画面。</p>
+  </div>
+  <div class="card">
+    <h3>🎵 不打扰音乐</h3>
+    <p>打开 App 不会掐断正在播放的音乐/播客。</p>
+  </div>
+  <div class="card">
+    <h3>📱 平放防翻转</h3>
+    <p>手机平放（俯拍/架拍）时画面方向锁定，不会因轻微晃动而翻转。</p>
+  </div>
+</div>
+
+<h2><span class="num">7</span>横屏使用</h2>
+<div class="card">
+  <ul>
+    <li>界面自动重排：预览居左，控制栏移到右侧竖排</li>
+    <li>分割模式自动变为<b>左右分屏</b></li>
+    <li>录制方向在<b>按下录制键那一刻锁定</b>：横着拿录 1920×1080，竖着拿录 1080×1920；录制中转动手机不影响当前片段</li>
+  </ul>
+</div>
+
+<h2><span class="num">8</span>多语言</h2>
+<div class="card">
+  <p>设置 → 语言，手动选择：<b>English（默认）/ Deutsch / 中文 / 日本語 / Français</b>。不跟随系统语言，选完立即生效并记住。</p>
+</div>
+
+<h2><span class="num">9</span>已知限制</h2>
+<div class="card">
+  <ul>
+    <li>需要<b>真机</b>且支持 MultiCam（iPhone XS/XR 及之后机型），模拟器无法运行双摄</li>
+    <li>录制中<b>跨物理镜头</b>切换（如 1× → .5×）会有一瞬间画面停顿（同镜头内数码变焦无此问题）；系统相机的无缝切换依赖 MultiCam 用不了的虚拟镜头</li>
+    <li>微距为近似实现：选 .5× 超广角时自动启用近距离对焦优化，非自动切换</li>
+    <li>4K + 60fps + 竖横同拍同时开启负载很高，低端机型可能掉帧发热，建议按需组合</li>
+  </ul>
+</div>
+
+</div><!-- /tab-guide -->
+
+<!-- ============================================================ -->
+<!-- TAB 2: 技术架构 -->
+<!-- ============================================================ -->
+<div id="tab-tech" class="tab-content">
+
+<h2><span class="num">1</span>项目结构</h2>
+<div class="card">
+<pre>
+DualCamera/
+├── App/
+│   ├── DualCameraApp.swift        <span class="c">// @main 入口，加载 CaptureView</span>
+│   ├── Info.plist                 <span class="c">// 相机/麦克风/相册权限文案、URL scheme</span>
+│   └── Assets.xcassets/           <span class="c">// App 图标 (1024 单尺寸)</span>
+├── Views/                         <span class="c">// SwiftUI 界面层</span>
+│   ├── CaptureView.swift          <span class="c">// 主拍摄界面（竖/横双布局）</span>
+│   ├── CameraPickerView.swift     <span class="c">// 「选择您的相机」网格选择页</span>
+│   ├── DualPreviewView.swift      <span class="c">// UIViewRepresentable：托管双预览层+手势</span>
+│   ├── SettingsView.swift         <span class="c">// 设置：语言 / 编码格式 / 开发者控制台</span>
+│   ├── ContentView.swift          <span class="c">// 开发者控制台（能力扫描，仅英文）</span>
+│   └── PreviewView.swift          <span class="c">// 单摄预览（控制台用）</span>
+├── Services/                      <span class="c">// AVFoundation 引擎层</span>
+│   ├── DualCameraController.swift <span class="c">// ★ 核心：MultiCam 会话总控 (~1100 行)</span>
+│   ├── DualStreamRecorder.swift   <span class="c">// AVAssetWriter 录制器（1~3 路输出）</span>
+│   ├── DualFrameCompositor.swift  <span class="c">// 分割/画中画合成数学（录像+拍照共用）</span>
+│   ├── CameraCapabilityScanner.swift  <span class="c">// 硬件能力扫描（控制台用）</span>
+│   ├── CameraSessionController.swift  <span class="c">// 单摄会话（控制台用）</span>
+│   └── CapabilityReportExporter.swift <span class="c">// JSON 导出（控制台用）</span>
+├── Models/
+│   ├── CaptureSessionModels.swift <span class="c">// CaptureMode/VideoQuality/FrameRate/VideoCodec/ZoomPreset</span>
+│   └── CameraModels.swift         <span class="c">// 能力报告模型（控制台用）</span>
+└── Localization/                  <span class="c">// 手动五语言系统（不依赖系统 locale）</span>
+    ├── AppLanguage.swift          <span class="c">// en/de/zh/ja/fr 枚举</span>
+    ├── LocKey.swift               <span class="c">// 全部文案 key 枚举</span>
+    ├── Strings.swift              <span class="c">// key × 语言 翻译总表</span>
+    └── LocalizationManager.swift  <span class="c">// 单例，@Published 切换 + UserDefaults 持久化</span>
+</pre>
+</div>
+
+<h2><span class="num">2</span>整体数据流</h2>
+<div class="card">
+<div class="flow">
+<b>后置镜头</b> ──┐                                        ┌─→ <b>backPreviewLayer</b>（预览，不防抖）
+              ├─ AVCaptureMultiCamSession ──连接──┤
+<b>前置镜头</b> ──┤   （手动无连接模式组装）           ├─→ <b>backVideoOutput</b>  ─┐
+              │                                    ├─→ <b>frontPreviewLayer</b> │
+<b>麦克风</b>   ──┘                                    ├─→ <b>frontVideoOutput</b> ─┼─→ <b>AVCaptureDataOutput</b>
+                                                   └─→ <b>audioOutput</b>      ─┘    <b>Synchronizer</b>
+                                                                                │ (dataQueue)
+                                    ┌───────────────────────────────────────────┘
+                                    ▼
+                      同步回调：back + front + audio 三路时间对齐的样本
+                                    │
+                    ┌───────────────┼──────────────────┐
+                    ▼               ▼                  ▼
+              拍照触发时       <b>DualStreamRecorder</b>    (丢弃，未录制时)
+             CoreImage 合成      │
+             → JPEG → 相册       ├─ 分割/画中画: CoreImage 合成 → AVAssetWriter ×1
+                                 │   (竖横同拍时: 双画布 ×2)
+                                 └─ 双录: 两路原始帧直写 → AVAssetWriter ×2
+                                      │
+                                      ▼
+                              .mov 文件 → 系统相册 + 应用沙盒
+</div>
+</div>
+
+<h2><span class="num">3</span>核心类详解</h2>
+<div class="card">
+  <h3>DualCameraController —— 引擎总控</h3>
+  <p>持有 <code>AVCaptureMultiCamSession</code> 和两个预览层，是所有相机操作的唯一入口。ObservableObject，约 30 个 <code>@Published</code> 属性驱动 UI。职责：</p>
+  <ul>
+    <li><b>镜头发现与配对</b>：<code>DiscoverySession</code> 枚举物理镜头（刻意排除 TrueDepth——它与前置广角是同一颗传感器，双选会崩），用 <code>supportedMultiCamDeviceSets</code> 校验两镜头能否同时运行</li>
+    <li><b>会话组装</b>：全程「无连接模式」（<code>addInputWithNoConnections</code> / <code>addOutputWithNoConnections</code> + 手动 <code>AVCaptureConnection</code>）——MultiCam 下必须手动接线才能精确控制每路的方向、镜像、防抖</li>
+    <li><b>格式协商</b>：<code>applyBestFormat(to:quality:fps:)</code> 在 <code>isMultiCamSupported</code> 的格式里按 分辨率优先→帧率次之 降级选择，然后锁定恒定帧率（min=max FrameDuration）；达不到的档位通过 <code>fourKAvailable</code>/<code>fpsAchieved</code> 上报 UI 显示 ⚠️</li>
+    <li><b>镜头切换</b>：同镜头变焦 = 改 <code>videoZoomFactor</code>（档位点击用 <code>ramp()</code> 平滑）；跨镜头 = 只拆装后置那半套输入/连接，前置和录制不动</li>
+    <li><b>方向系统</b>：每镜头一个 <code>RotationCoordinator</code> + KVO，预览实时转正；手机平放时（<code>UIDevice.orientation</code> 非有效界面方向）忽略更新防止翻转；录制方向在开录瞬间从预览连接读取并锁定</li>
+    <li><b>生命周期防护</b>：五组 NotificationCenter 观察者（会话中断/中断结束/运行时错误/音频中断/热状态），任何一种都能安全收尾正在写的文件</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>DualStreamRecorder —— 录制器</h3>
+  <p>纯 <code>AVAssetWriter</code> 封装，所有调用都在同一条串行 dataQueue 上，因此内部无锁。三种输出拓扑：</p>
+  <ul>
+    <li><b>合成单文件</b>（分割/画中画）：<code>AVAssetWriterInputPixelBufferAdaptor</code> + 像素缓冲池，每帧经 DualFrameCompositor 画到画布再编码</li>
+    <li><b>合成双文件</b>（竖横同拍）：同一份输入帧渲染到两个不同尺寸画布（9:16 + 16:9），两个 writer 并行写</li>
+    <li><b>双录</b>：跳过合成，两路 <code>CMSampleBuffer</code> 直接 append，零转码开销</li>
+  </ul>
+  <p>编码参数显式给定：码率 = 宽×高×fps×每像素比特数（HEVC 0.11 / H.264 0.17，有封顶），关键帧间隔 2 秒；音频 AAC 48kHz 立体声 128kbps。front 帧比 back 晚到时用 <code>latestFront</code> 缓存兜底配对。</p>
+</div>
+
+<div class="card">
+  <h3>DualFrameCompositor —— 合成数学</h3>
+  <p>无状态 enum，纯 CoreImage：aspect-fill 缩放 + 平移 + 裁剪 + <code>composited(over:)</code> 叠加。<b>录像和拍照共用这一份代码</b>，保证视频帧和照片的排版像素级一致。画中画小窗位置/分割线方向都由画布尺寸和 portrait 参数推导。</p>
+</div>
+
+<div class="card">
+  <h3>DualPreviewView —— 预览宿主 + 手势中心</h3>
+  <p><code>UIViewRepresentable</code> 包一个 UIKit view，直接把 controller 的两个 <code>AVCaptureVideoPreviewLayer</code> 挂为 sublayer——切换模式/交换画面只是改 layer frame，<b>不触碰会话</b>，所以瞬时完成。手势全部在 UIKit 层处理（单击对焦要 <code>captureDevicePointConverted</code> 坐标变换、双击要与单击 <code>require(toFail:)</code> 仲裁、捏合要连续回调），比 SwiftUI 手势更可控。</p>
+</div>
+
+<div class="card">
+  <h3>LocalizationManager —— 手动多语言</h3>
+  <p>单例 + <code>@Published language</code>，默认英文、UserDefaults 持久化、刻意不读系统 locale。文案 = <code>LocKey</code> 枚举 × <code>Strings.table</code> 字典查表，带 <code>{0}/{1}</code> 占位符替换。加语言 = 枚举加一个 case + 表里补翻译，编译器会强制补全。</p>
+</div>
+
+<h2><span class="num">4</span>线程模型</h2>
+<div class="card">
+  <table>
+    <tr><th>队列</th><th>职责</th><th>规则</th></tr>
+    <tr><td><code>sessionQueue</code>（串行）</td><td>会话配置、镜头切换、变焦、对焦、手电筒</td><td>所有 <code>beginConfiguration/commitConfiguration</code> 必须在此，避免与 startRunning 竞争</td></tr>
+    <tr><td><code>dataQueue</code>（串行）</td><td>同步器回调、录制器全部读写、拍照触发标志</td><td>录制器状态只在此队列碰，故无锁；合成渲染也在此（CoreImage 到 GPU）</td></tr>
+    <tr><td>主队列</td><td>全部 <code>@Published</code> 更新、预览层方向角、通知回调</td><td>跨队列传值先拷贝为值类型再 dispatch，满足 Swift 6 Sendable 检查</td></tr>
+  </table>
+  <div class="why"><b>为什么：</b>AVFoundation 的会话操作是阻塞且非线程安全的；把「配置」「数据」「UI」三类工作分到三条队列，配置卡顿不掉帧、数据处理不卡 UI。类标记 <code>@unchecked Sendable</code>，安全性靠上述队列纪律人工保证。</div>
+</div>
+
+<h2><span class="num">5</span>关键工程决策</h2>
+<div class="card">
+  <table>
+    <tr><th>问题</th><th>方案</th></tr>
+    <tr><td>同一颗前置传感器被选两次 → MultiCam 崩溃</td><td>发现列表排除 TrueDepth；选择页用 <code>supportedMultiCamDeviceSets</code> 把不可配对镜头置灰；配置前再校验一次兜底</td></tr>
+    <tr><td>手机平放时画面随机 180° 翻转</td><td>重力在水平姿态无法区分正/倒，此时忽略 RotationCoordinator 更新，保持最后有效方向</td></tr>
+    <tr><td>开录瞬间录进黑屏渐亮</td><td>KVO 监听两镜头 <code>isAdjustingExposure</code>，曝光收敛前禁用快门（1.5s 超时兜底）</td></tr>
+    <tr><td>来电/抢占导致文件损坏</td><td>音频中断和会话中断通知里先 <code>stopRecording()</code> 走完整的 <code>finishWriting</code> 流程再放行</td></tr>
+    <tr><td>打开 App 掐断用户音乐</td><td><code>automaticallyConfiguresApplicationAudioSession = false</code> + 自管 <code>.playAndRecord</code> + <code>.mixWithOthers</code></td></tr>
+    <tr><td>4K60 双摄超出机型能力</td><td>格式协商分辨率优先、帧率降级，结果通过 ⚠️ 角标如实上报，绝不静默谎报</td></tr>
+    <tr><td>录像和拍照排版不一致</td><td>合成数学抽成无状态 DualFrameCompositor，两条路径调同一函数</td></tr>
+    <tr><td>拍照不打断录像</td><td>不用 AVCapturePhotoOutput（MultiCam 下加输出会打断会话），改为在同步器回调里截取当前帧标志位触发</td></tr>
+  </table>
+</div>
+
+<h2><span class="num">6</span>构建与调试</h2>
+<div class="card">
+  <ul>
+    <li><b>环境</b>：Xcode 16+ / Swift 6（严格并发检查开启）/ 部署目标 iOS 17.0</li>
+    <li><b>构建</b>：<code>open DualCamera.xcodeproj</code> → 选 DualCamera scheme → 签名页设置自己的 Team → 真机运行（模拟器只能看 UI，MultiCam 不工作）</li>
+    <li><b>命令行部署</b>：<code>xcodebuild -project DualCamera.xcodeproj -scheme DualCamera -destination 'id=&lt;设备ID&gt;' -allowProvisioningUpdates build</code>，再用 <code>xcrun devicectl device install app</code> / <code>process launch</code> 安装启动</li>
+    <li><b>调试工具</b>：设置 → 开发者控制台，可扫描当前机型全部镜头/格式/帧率/MultiCam 组合并导出 JSON——适配新机型时先跑这个</li>
+    <li><b>测试</b>：DualCameraTests 覆盖模型与能力报告导出；相机行为只能真机验证</li>
+  </ul>
+</div>
+
+<h2><span class="num">7</span>后续路线（第二/三阶段）</h2>
+<div class="card">
+  <ul>
+    <li><b>第二阶段（付费 App 对齐）</b>：暂停/继续录制 · AE/AF 长按锁定 · 触感反馈 · 网格线/水平仪 · 存储空间预检 · 缩略图直达刚拍素材</li>
+    <li><b>第三阶段（差异化）</b>：滤镜/LUT · 4K60 全机型适配打磨 · 外接麦克风增益控制</li>
+  </ul>
+</div>
+
+</div><!-- /tab-tech -->
+
+<footer>
+  DualCamera · 开源项目 · <a href="https://github.com/mythenigma/doublecamera">github.com/mythenigma/doublecamera</a>
+</footer>
+
+<script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0 });
+}
+</script>
+
+</body>
+</html>
