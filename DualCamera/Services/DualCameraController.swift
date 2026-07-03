@@ -125,6 +125,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         // to ignore rotation updates while the phone is lying flat.
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         registerLifecycleObservers()
+        cleanupStaleCaptures()
     }
 
     deinit {
@@ -604,14 +605,14 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
 
         var presets: [ZoomPreset] = []
         if let ultraWide = backs.first(where: { $0.deviceType == .builtInUltraWideCamera }), pairable(ultraWide.uniqueID) {
-            presets.append(ZoomPreset(label: ".5×", deviceID: ultraWide.uniqueID, zoomFactor: 1))
+            presets.append(ZoomPreset(kind: .ultraWide, deviceID: ultraWide.uniqueID, zoomFactor: 1))
         }
         if let wide = backs.first(where: { $0.deviceType == .builtInWideAngleCamera }), pairable(wide.uniqueID) {
-            presets.append(ZoomPreset(label: "1×", deviceID: wide.uniqueID, zoomFactor: 1))
-            presets.append(ZoomPreset(label: "2×", deviceID: wide.uniqueID, zoomFactor: 2))
+            presets.append(ZoomPreset(kind: .wide1x, deviceID: wide.uniqueID, zoomFactor: 1))
+            presets.append(ZoomPreset(kind: .wide2x, deviceID: wide.uniqueID, zoomFactor: 2))
         }
         if let tele = backs.first(where: { $0.deviceType == .builtInTelephotoCamera }), pairable(tele.uniqueID) {
-            presets.append(ZoomPreset(label: LocalizationManager.shared.t(.lensTele), deviceID: tele.uniqueID, zoomFactor: 1))
+            presets.append(ZoomPreset(kind: .tele, deviceID: tele.uniqueID, zoomFactor: 1))
         }
 
         let active = presets.first { $0.deviceID == currentBackID && $0.zoomFactor == 1 } ?? presets.first { $0.deviceID == currentBackID }
@@ -947,32 +948,39 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                     self.lastCaptureURL = output.urls.first
                     self.lastCaptureIsVideo = true
                     self.lastCaptureThumbnail = nil
-                    if let url = output.urls.first {
-                        self.generateVideoThumbnail(url: url)
-                    }
-                    for url in output.urls {
-                        self.saveToPhotoLibrary(url: url, isVideo: true)
-                    }
+                    self.finishVideoCaptures(urls: output.urls)
                 }
             }
         }
     }
 
-    private func generateVideoThumbnail(url: URL) {
+    /// Thumbnail extraction and Photos hand-off for finished clips, strictly
+    /// in that order: the Photos save deletes the sandbox file on success, so
+    /// the thumbnail frame must be read out before the save is even started.
+    private func finishVideoCaptures(urls: [URL]) {
         Task.detached(priority: .utility) {
-            let asset = AVURLAsset(url: url)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            guard let cgImage = try? generator.copyCGImage(at: .zero, actualTime: nil) else { return }
-            let image = UIImage(cgImage: cgImage)
-            await MainActor.run { self.lastCaptureThumbnail = image }
+            if let first = urls.first {
+                let asset = AVURLAsset(url: first)
+                let generator = AVAssetImageGenerator(asset: asset)
+                generator.appliesPreferredTrackTransform = true
+                if let cgImage = try? generator.copyCGImage(at: .zero, actualTime: nil) {
+                    let image = UIImage(cgImage: cgImage)
+                    await MainActor.run { self.lastCaptureThumbnail = image }
+                }
+            }
+
+            for url in urls {
+                self.saveToPhotoLibrary(url: url, isVideo: true)
+            }
         }
     }
 
-    /// Copies a finished capture into the user's Photos library so it shows up
-    /// in the Photos app and is reachable by other apps, same as the system
-    /// camera. The original file also stays in the app sandbox for fast
-    /// in-app preview (thumbnail tap) and as a fallback if this fails.
+    /// Moves a finished capture into the user's Photos library, then deletes
+    /// the sandbox original — Photos owns the copy, so keeping ours would
+    /// silently double every capture's disk usage forever. The sandbox file
+    /// survives only when the save fails (no permission / error): it is then
+    /// the user's only copy, reachable via the Files app, and gets reclaimed
+    /// by `cleanupStaleCaptures` after a week.
     private func saveToPhotoLibrary(url: URL, isVideo: Bool) {
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             guard status == .authorized || status == .limited else {
@@ -986,9 +994,34 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                     PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url)
                 }
             }) { success, error in
-                if !success {
+                if success {
+                    try? FileManager.default.removeItem(at: url)
+                } else {
                     let loc = LocalizationManager.shared
                     self.report(loc.t(.errPhotoLibrarySaveFailed, error?.localizedDescription ?? loc.t(.errUnknown)))
+                }
+            }
+        }
+    }
+
+    /// Launch-time sweep: deletes sandbox captures older than 7 days. Recent
+    /// files are deliberately kept — a file only lingers here when its Photos
+    /// save failed, so the user gets a week to rescue it via the Files app
+    /// before the space is reclaimed.
+    private func cleanupStaleCaptures() {
+        Task.detached(priority: .background) {
+            let fm = FileManager.default
+            let documents = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            guard let files = try? fm.contentsOfDirectory(
+                at: documents,
+                includingPropertiesForKeys: [.contentModificationDateKey]
+            ) else { return }
+
+            let cutoff = Date().addingTimeInterval(-7 * 24 * 3600)
+            for file in files where file.lastPathComponent.hasPrefix("DualCamera-") {
+                let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                if modified < cutoff {
+                    try? fm.removeItem(at: file)
                 }
             }
         }

@@ -142,11 +142,26 @@ enum VideoCodec: String, CaseIterable, Identifiable {
 /// A back-camera zoom preset shown in the zoom bar. Each maps to a physical
 /// lens plus a digital zoom factor applied on top of it.
 struct ZoomPreset: Identifiable, Equatable {
-    let label: String
+    enum Kind: Equatable {
+        case ultraWide, wide1x, wide2x, tele
+    }
+
+    let kind: Kind
     let deviceID: String
     let zoomFactor: CGFloat
 
-    var id: String { label }
+    /// Computed at render time (not stored at configure time) so the
+    /// localized tele label updates the moment the app language changes.
+    var label: String {
+        switch kind {
+        case .ultraWide: return ".5×"
+        case .wide1x: return "1×"
+        case .wide2x: return "2×"
+        case .tele: return LocalizationManager.shared.t(.lensTele)
+        }
+    }
+
+    var id: String { "\(deviceID)-\(zoomFactor)" }
 }
 
 /// A selectable camera lens presented in the picker grid.

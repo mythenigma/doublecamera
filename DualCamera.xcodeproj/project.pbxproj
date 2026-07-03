@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		DCBF0000000000000000010F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000116 /* Assets.xcassets */; };
+		DCBF00000000000000000120 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000120 /* PrivacyInfo.xcprivacy */; };
 		DCBF00000000000000000110 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000117 /* AppLanguage.swift */; };
 		DCBF00000000000000000111 /* LocKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000118 /* LocKey.swift */; };
 		DCBF00000000000000000112 /* LocalizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000119 /* LocalizationManager.swift */; };
@@ -48,6 +49,7 @@
 		DCFI00000000000000000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000103 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DCFI00000000000000000116 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DCFI00000000000000000120 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		DCFI00000000000000000117 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000118 /* LocKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocKey.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000119 /* LocalizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationManager.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				DCFI00000000000000000101 /* DualCameraApp.swift */,
 				DCFI00000000000000000103 /* Info.plist */,
 				DCFI00000000000000000116 /* Assets.xcassets */,
+				DCFI00000000000000000120 /* PrivacyInfo.xcprivacy */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -265,6 +268,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DCBF0000000000000000010F /* Assets.xcassets in Resources */,
+				DCBF00000000000000000120 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
