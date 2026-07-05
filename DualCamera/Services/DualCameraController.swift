@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreImage
 import Foundation
+import ImageIO
 import Photos
 import UIKit
 
@@ -52,6 +53,34 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
     /// Live zoom factor of the back lens, driven by pinch and preset taps.
     @Published private(set) var currentZoomFactor: CGFloat = 1
 
+    /// PiP window position/size, user-draggable. Published for the preview;
+    /// a lock-guarded copy feeds the capture threads (see `capturePipLayout`).
+    @Published private(set) var pipLayout = PipLayout()
+
+    private let pipLock = NSLock()
+    private var capturePipLayout = PipLayout()
+
+    /// Called from the preview's pan/double-tap gestures (main thread).
+    func setPipLayout(_ layout: PipLayout) {
+        pipLayout = layout
+        pipLock.lock()
+        capturePipLayout = layout
+        pipLock.unlock()
+    }
+
+    func togglePipScale() {
+        var layout = pipLayout
+        layout.toggleScale()
+        setPipLayout(layout)
+    }
+
+    /// Thread-safe snapshot for the recorder/photo paths (data queue).
+    private var currentPipLayout: PipLayout {
+        pipLock.lock()
+        defer { pipLock.unlock() }
+        return capturePipLayout
+    }
+
     /// True while the capture session is interrupted (another app took the
     /// camera, or a phone call). Cleared automatically when it ends.
     @Published private(set) var isInterrupted = false
@@ -91,8 +120,21 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
     private var backDataConnection: AVCaptureConnection?
     private var frontDataConnection: AVCaptureConnection?
 
-    /// Set on the data queue by `capturePhoto()`; consumed by the very next
-    /// synchronized frame pair, then cleared.
+    // Real still-photo pipeline: one AVCapturePhotoOutput per lens delivers
+    // full sensor-resolution shots through the system photo-processing stack,
+    // far better than grabbing an (at most 4K) video frame.
+    private let backPhotoOutput = AVCapturePhotoOutput()
+    private let frontPhotoOutput = AVCapturePhotoOutput()
+    private var backPhotoConnection: AVCaptureConnection?
+    private var frontPhotoConnection: AVCaptureConnection?
+    /// False when the MultiCam session refused the extra outputs (hardware
+    /// cost); photo capture then falls back to the video-frame grab below.
+    private var photoOutputsEnabled = false
+    /// Retains the in-flight capture delegate until both photos arrive.
+    private var photoCoordinator: PhotoCaptureCoordinator?
+
+    /// Set on the data queue by the frame-grab fallback; consumed by the very
+    /// next synchronized frame pair, then cleared.
     private var photoCaptureArmed = false
 
     // Track device orientation so preview stays upright and recordings are
@@ -296,6 +338,9 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
         session.connections.forEach { session.removeConnection($0) }
         session.inputs.forEach { session.removeInput($0) }
         session.outputs.forEach { session.removeOutput($0) }
+        backPhotoConnection = nil
+        frontPhotoConnection = nil
+        photoOutputsEnabled = false
 
         guard let backDevice = device(for: backID, fallback: .back),
               let frontDevice = device(for: frontID, fallback: .front) else {
@@ -342,10 +387,17 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             backDataConnection = try connectCamera(input: backInput, device: backDevice, previewLayer: backPreviewLayer, output: backVideoOutput, mirror: backDevice.position == .front)
             frontDataConnection = try connectCamera(input: frontInput, device: frontDevice, previewLayer: frontPreviewLayer, output: frontVideoOutput, mirror: frontDevice.position == .front)
 
+            photoOutputsEnabled = attachPhotoOutputs(
+                backInput: backInput, backDevice: backDevice,
+                frontInput: frontInput, frontDevice: frontDevice
+            )
+
             configureAudioSession()
             configureAudio()
 
             session.commitConfiguration()
+
+            updateMaxPhotoDimensions()
 
             setupRotationTracking(backDevice: backDevice, frontDevice: frontDevice)
 
@@ -406,6 +458,58 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             dataConnection.preferredVideoStabilizationMode = .auto
         }
         return dataConnection
+    }
+
+    /// Adds one photo output per lens (all-or-nothing). Returns false when the
+    /// session rejects them — MultiCam budgets hardware cost, and two extra
+    /// photo outputs can exceed it on some model/format combinations. The
+    /// caller then keeps the frame-grab fallback path.
+    private func attachPhotoOutputs(
+        backInput: AVCaptureDeviceInput, backDevice: AVCaptureDevice,
+        frontInput: AVCaptureDeviceInput, frontDevice: AVCaptureDevice
+    ) -> Bool {
+        func attach(output: AVCapturePhotoOutput, input: AVCaptureDeviceInput, device: AVCaptureDevice) -> AVCaptureConnection? {
+            guard session.canAddOutput(output) else { return nil }
+            session.addOutputWithNoConnections(output)
+            guard let port = input.ports(for: .video, sourceDeviceType: device.deviceType, sourceDevicePosition: device.position).first else {
+                session.removeOutput(output)
+                return nil
+            }
+            let connection = AVCaptureConnection(inputPorts: [port], output: output)
+            guard session.canAddConnection(connection) else {
+                session.removeOutput(output)
+                return nil
+            }
+            session.addConnection(connection)
+            applyOrientation(connection, mirror: device.position == .front)
+            return connection
+        }
+
+        guard let backConnection = attach(output: backPhotoOutput, input: backInput, device: backDevice) else {
+            return false
+        }
+        guard let frontConnection = attach(output: frontPhotoOutput, input: frontInput, device: frontDevice) else {
+            session.removeConnection(backConnection)
+            session.removeOutput(backPhotoOutput)
+            return false
+        }
+
+        backPhotoConnection = backConnection
+        frontPhotoConnection = frontConnection
+        return true
+    }
+
+    /// Requests the largest still resolution the active (MultiCam) formats
+    /// support — typically 12MP vs the 8MP ceiling of a 4K video frame.
+    /// Must run after `commitConfiguration` so `activeFormat` is final.
+    private func updateMaxPhotoDimensions() {
+        guard photoOutputsEnabled else { return }
+        for (output, device) in [(backPhotoOutput, backInput?.device), (frontPhotoOutput, frontInput?.device)] {
+            guard let device else { continue }
+            if let best = device.activeFormat.supportedMaxPhotoDimensions.max(by: { $0.width * $0.height < $1.width * $1.height }) {
+                output.maxPhotoDimensions = best
+            }
+        }
     }
 
     /// Observes each camera's horizon-level rotation so the preview layers stay
@@ -643,6 +747,10 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
             self.session.beginConfiguration()
             if let connection = self.backPreviewLayer.connection { self.session.removeConnection(connection) }
             if let connection = self.backDataConnection { self.session.removeConnection(connection) }
+            if let connection = self.backPhotoConnection {
+                self.session.removeConnection(connection)
+                self.backPhotoConnection = nil
+            }
             if self.session.outputs.contains(self.backVideoOutput) { self.session.removeOutput(self.backVideoOutput) }
             if let input = self.backInput { self.session.removeInput(input) }
 
@@ -660,7 +768,22 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
                     input: input, device: device, previewLayer: self.backPreviewLayer,
                     output: self.backVideoOutput, mirror: device.position == .front
                 )
+
+                // Re-wire the still-photo connection to the new lens's port.
+                if self.photoOutputsEnabled,
+                   let port = input.ports(for: .video, sourceDeviceType: device.deviceType, sourceDevicePosition: device.position).first {
+                    let connection = AVCaptureConnection(inputPorts: [port], output: self.backPhotoOutput)
+                    if self.session.canAddConnection(connection) {
+                        self.session.addConnection(connection)
+                        self.applyOrientation(connection, mirror: device.position == .front)
+                        self.backPhotoConnection = connection
+                    } else {
+                        self.photoOutputsEnabled = false
+                    }
+                }
+
                 self.session.commitConfiguration()
+                self.updateMaxPhotoDimensions()
 
                 self.setZoomFactor(preset.zoomFactor, on: device)
                 self.applyMacroFocusIfNeeded(to: device)
@@ -1029,16 +1152,175 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
 
     // MARK: - Photo capture
 
-    /// Arms a still-photo capture that fires on the next synchronized frame
-    /// pair. In split/pip modes this saves one composed JPEG; in 双录 mode it
-    /// saves two independent JPEGs, mirroring how video recording splits output.
+    /// Captures a still. With the photo outputs attached this shoots both
+    /// lenses at full sensor resolution through the system photo pipeline;
+    /// otherwise it falls back to grabbing the next synchronized video frame.
+    /// Split/pip save one composed image, 双录 saves two independent ones.
     func capturePhoto() {
         if countdownRemaining != nil {
             cancelCountdown()
         } else if recordDelaySeconds > 0 {
-            beginCountdown { self.armPhotoCapture() }
+            beginCountdown { self.performPhotoCapture() }
         } else {
+            performPhotoCapture()
+        }
+    }
+
+    /// Entry always runs on the main thread (button tap / countdown timer),
+    /// which is where the preview's locked orientation angle must be read.
+    private func performPhotoCapture() {
+        let angle = backPreviewLayer.connection?.videoRotationAngle ?? 90
+        let mode = self.mode
+        let swapped = self.isSwapped
+        let useHEIC = VideoCodec.stored == .hevc
+
+        // While recording, grab the next synchronized video frame instead of
+        // firing the full-res photo pipeline — a high-res still capture can
+        // hitch the sensor and drop recorded frames. Same trade-off the
+        // system camera makes for its photo-while-recording button.
+        if isRecording {
             armPhotoCapture()
+            return
+        }
+
+        sessionQueue.async {
+            guard self.photoOutputsEnabled,
+                  let backConnection = self.backPhotoConnection,
+                  let frontConnection = self.frontPhotoConnection else {
+                self.armPhotoCapture()
+                return
+            }
+
+            for connection in [backConnection, frontConnection] where connection.isVideoRotationAngleSupported(angle) {
+                connection.videoRotationAngle = angle
+            }
+
+            let backHEIC = useHEIC && self.backPhotoOutput.availablePhotoCodecTypes.contains(.hevc)
+            let frontHEIC = useHEIC && self.frontPhotoOutput.availablePhotoCodecTypes.contains(.hevc)
+
+            let coordinator = PhotoCaptureCoordinator(
+                backOutput: self.backPhotoOutput,
+                frontOutput: self.frontPhotoOutput
+            ) { [weak self] backPhoto, frontPhoto in
+                guard let self else { return }
+                self.processCapturedPhotos(
+                    backPhoto: backPhoto, frontPhoto: frontPhoto,
+                    mode: mode, swapped: swapped, useHEIC: useHEIC,
+                    backExt: backHEIC ? "heic" : "jpg",
+                    frontExt: frontHEIC ? "heic" : "jpg"
+                )
+                self.sessionQueue.async { self.photoCoordinator = nil }
+            }
+            self.photoCoordinator = coordinator
+
+            self.backPhotoOutput.capturePhoto(with: Self.makePhotoSettings(for: self.backPhotoOutput, wantsHEIC: backHEIC), delegate: coordinator)
+            self.frontPhotoOutput.capturePhoto(with: Self.makePhotoSettings(for: self.frontPhotoOutput, wantsHEIC: frontHEIC), delegate: coordinator)
+        }
+    }
+
+    private static func makePhotoSettings(for output: AVCapturePhotoOutput, wantsHEIC: Bool) -> AVCapturePhotoSettings {
+        let settings = wantsHEIC
+            ? AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
+            : AVCapturePhotoSettings()
+        settings.maxPhotoDimensions = output.maxPhotoDimensions
+        return settings
+    }
+
+    /// Decodes an AVCapturePhoto into an upright, zero-origin CIImage.
+    private static func uprightImage(from photo: AVCapturePhoto) -> CIImage? {
+        guard let data = photo.fileDataRepresentation(),
+              let raw = CIImage(data: data, options: [.applyOrientationProperty: true]) else { return nil }
+        return raw.transformed(by: CGAffineTransform(translationX: -raw.extent.minX, y: -raw.extent.minY))
+    }
+
+    /// Small upright thumbnail for the shutter-corner preview.
+    private func makeThumbnail(from image: CIImage) -> UIImage? {
+        let scale = 240 / max(image.extent.width, 1)
+        let small = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        guard let cgImage = ciContext.createCGImage(small, from: small.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
+    }
+
+    /// Runs on the photo delegate's queue (off-main): composes/encodes and
+    /// hands the files to the Photos library.
+    private func processCapturedPhotos(
+        backPhoto: AVCapturePhoto?, frontPhoto: AVCapturePhoto?,
+        mode: CaptureMode, swapped: Bool, useHEIC: Bool,
+        backExt: String, frontExt: String
+    ) {
+        let mainPhoto = swapped ? frontPhoto : backPhoto
+        let secondaryPhoto = swapped ? backPhoto : frontPhoto
+
+        let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let stamp = Self.photoTimestamp()
+        var savedURLs: [URL] = []
+        var thumbnail: UIImage?
+
+        func write(_ data: Data, to url: URL) {
+            do {
+                try data.write(to: url, options: .atomic)
+                savedURLs.append(url)
+            } catch {
+                report(LocalizationManager.shared.t(.errPhotoSaveFailed, error.localizedDescription))
+            }
+        }
+
+        switch mode {
+        case .split, .pip:
+            guard let mainPhoto, let mainImage = Self.uprightImage(from: mainPhoto) else {
+                report(LocalizationManager.shared.t(.errPhotoSaveFailedGeneric))
+                return
+            }
+            let secondaryImage = secondaryPhoto.flatMap(Self.uprightImage)
+            let size = mainImage.extent.size
+            let composed = DualFrameCompositor.composeImages(
+                back: mainImage, front: secondaryImage, mode: mode,
+                size: size, portrait: size.height >= size.width,
+                pip: currentPipLayout
+            )
+
+            let colorSpace = CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB()
+            let qualityOptions = [CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.9]
+            var data: Data?
+            var ext = "jpg"
+            if useHEIC, let heif = ciContext.heifRepresentation(of: composed, format: .RGBA8, colorSpace: colorSpace, options: qualityOptions) {
+                data = heif
+                ext = "heic"
+            } else {
+                data = ciContext.jpegRepresentation(of: composed, colorSpace: colorSpace, options: qualityOptions)
+            }
+            guard let data else {
+                report(LocalizationManager.shared.t(.errPhotoSaveFailedGeneric))
+                return
+            }
+            write(data, to: directory.appendingPathComponent("DualCamera-\(stamp).\(ext)"))
+            thumbnail = makeThumbnail(from: composed)
+
+        case .dualFile:
+            if let backPhoto, let data = backPhoto.fileDataRepresentation() {
+                write(data, to: directory.appendingPathComponent("DualCamera-\(stamp)-back.\(backExt)"))
+                if let image = Self.uprightImage(from: backPhoto) {
+                    thumbnail = makeThumbnail(from: image)
+                }
+            }
+            if let frontPhoto, let data = frontPhoto.fileDataRepresentation() {
+                write(data, to: directory.appendingPathComponent("DualCamera-\(stamp)-front.\(frontExt)"))
+            }
+        }
+
+        guard let firstURL = savedURLs.first else {
+            report(LocalizationManager.shared.t(.errPhotoSaveFailedGeneric))
+            return
+        }
+
+        for url in savedURLs {
+            saveToPhotoLibrary(url: url, isVideo: false)
+        }
+
+        DispatchQueue.main.async {
+            self.lastCaptureURL = firstURL
+            self.lastCaptureIsVideo = false
+            self.lastCaptureThumbnail = thumbnail
         }
     }
 
@@ -1074,7 +1356,7 @@ final class DualCameraController: NSObject, ObservableObject, @unchecked Sendabl
 
         switch mode {
         case .split, .pip:
-            let composed = DualFrameCompositor.compose(back: backPixels, front: frontPixels, mode: mode, size: size, portrait: portrait)
+            let composed = DualFrameCompositor.compose(back: backPixels, front: frontPixels, mode: mode, size: size, portrait: portrait, pip: currentPipLayout)
             write(composed, to: directory.appendingPathComponent("DualCamera-\(stamp).jpg"))
         case .dualFile:
             write(CIImage(cvPixelBuffer: backPixels), to: directory.appendingPathComponent("DualCamera-\(stamp)-back.jpg"))
@@ -1147,6 +1429,55 @@ extension DualCameraController: AVCaptureDataOutputSynchronizerDelegate {
         }
 
         guard recorder.isRecording else { return }
-        recorder.append(back: back, front: front, audio: audio)
+        recorder.append(back: back, front: front, audio: audio, pip: currentPipLayout)
+    }
+}
+
+// MARK: - Photo capture coordination
+
+/// Collects the two simultaneous AVCapturePhoto results (back + front) and
+/// fires one completion when both delegate callbacks have arrived. Each photo
+/// output delivers on its own internal queue, so state is lock-guarded.
+private final class PhotoCaptureCoordinator: NSObject, AVCapturePhotoCaptureDelegate {
+    private let backOutput: AVCapturePhotoOutput
+    private let frontOutput: AVCapturePhotoOutput
+    private let completion: (AVCapturePhoto?, AVCapturePhoto?) -> Void
+    private let lock = NSLock()
+    private var backPhoto: AVCapturePhoto?
+    private var frontPhoto: AVCapturePhoto?
+    private var remaining = 2
+
+    init(
+        backOutput: AVCapturePhotoOutput,
+        frontOutput: AVCapturePhotoOutput,
+        completion: @escaping (AVCapturePhoto?, AVCapturePhoto?) -> Void
+    ) {
+        self.backOutput = backOutput
+        self.frontOutput = frontOutput
+        self.completion = completion
+    }
+
+    func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didFinishProcessingPhoto photo: AVCapturePhoto,
+        error: Error?
+    ) {
+        lock.lock()
+        if error == nil {
+            if output === backOutput {
+                backPhoto = photo
+            } else {
+                frontPhoto = photo
+            }
+        }
+        remaining -= 1
+        let done = remaining == 0
+        let back = backPhoto
+        let front = frontPhoto
+        lock.unlock()
+
+        if done {
+            completion(back, front)
+        }
     }
 }

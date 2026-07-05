@@ -139,6 +139,39 @@ enum VideoCodec: String, CaseIterable, Identifiable {
     }
 }
 
+/// Live position/size of the picture-in-picture window, shared between the
+/// preview layout and the recording/photo compositor so what the user drags
+/// on screen is exactly what lands in the file (WYSIWYG).
+struct PipLayout: Equatable {
+    /// Window center, normalized 0...1 in UI coordinates (y grows downward).
+    var center = CGPoint(x: 0.80, y: 0.20)
+    /// Size multiplier on the base window width; double-tap toggles it.
+    var scale: CGFloat = 1
+
+    static let enlargedScale: CGFloat = 1.55
+    /// Base window width as a fraction of the canvas width.
+    static let baseWidthFraction: CGFloat = 0.32
+
+    /// The window rect inside a canvas of `size`, clamped fully on-canvas.
+    /// The same math runs on the preview bounds and the export canvas.
+    func rect(in size: CGSize) -> CGRect {
+        guard size.width > 0, size.height > 0 else { return .zero }
+        let width = size.width * Self.baseWidthFraction * scale
+        let height = width * (size.height / size.width)
+        let margin: CGFloat = size.width * 0.02
+
+        var x = center.x * size.width - width / 2
+        var y = center.y * size.height - height / 2
+        x = min(max(x, margin), size.width - width - margin)
+        y = min(max(y, margin), size.height - height - margin)
+        return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    mutating func toggleScale() {
+        scale = scale == 1 ? Self.enlargedScale : 1
+    }
+}
+
 /// A back-camera zoom preset shown in the zoom bar. Each maps to a physical
 /// lens plus a digital zoom factor applied on top of it.
 struct ZoomPreset: Identifiable, Equatable {

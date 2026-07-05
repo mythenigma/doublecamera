@@ -119,11 +119,13 @@
   <h1>📷 DualCamera</h1>
   <p>前后双摄同时录制 · 接近原生手感 · 无水印 · 无订阅</p>
   <div class="badge-row">
-    <span class="badge">iOS 17+</span>
+    <span class="badge">v1.1</span>
+    <span class="badge">iOS 17+ · iPhone</span>
     <span class="badge">SwiftUI + AVFoundation</span>
     <span class="badge">AVCaptureMultiCamSession</span>
     <span class="badge">HEVC / H.264</span>
     <span class="badge">最高 4K · 60fps</span>
+    <span class="badge">12MP 真拍照</span>
     <span class="badge">5 种语言</span>
   </div>
 </header>
@@ -183,7 +185,7 @@
     <tr><td>变焦条 .5×/1×/2×/长焦</td><td>预览底部</td><td>切换后置物理镜头/数码变焦，录制中可用</td></tr>
     <tr><td>🔄 调换</td><td>预览左下</td><td>前后画面互换（谁当主画面）</td></tr>
     <tr><td>缩略图</td><td>底部左</td><td>显示最近拍摄，点击跳转系统照片 App</td></tr>
-    <tr><td>📷 白色按钮</td><td>底部</td><td>拍照（合成模式一张，双录模式两张）</td></tr>
+    <tr><td>📷 白色按钮</td><td>底部</td><td>拍照（合成模式一张，双录模式两张）；<b>录像中也能拍</b>，不打断录制</td></tr>
     <tr><td>🔴 红色按钮</td><td>底部中央</td><td>开始 / 停止录像</td></tr>
     <tr><td>⊞ 网格</td><td>底部右</td><td>重新选择镜头组合</td></tr>
   </table>
@@ -193,7 +195,9 @@
 <div class="card">
   <ul>
     <li><b>单击画面</b> —— 出现黄色对焦框：点哪对哪（主画面/小窗都可以）；框旁边的 ☀️ 滑轨<b>上下拖动调节曝光</b>亮度</li>
-    <li><b>双击画面</b> —— 前后画面互换</li>
+    <li><b>拖动小窗</b>（画中画）—— 按住悬浮小窗拖到任意位置，松手自动限制在画面内；<b>录出来的视频里小窗就在你拖到的位置</b>（所见即所得），录制中拖动的移动过程也会录进视频</li>
+    <li><b>双击小窗</b>（画中画）—— 放大 ⇄ 缩小两档切换，成片同步</li>
+    <li><b>双击大画面</b> —— 前后画面互换</li>
     <li><b>双指捏合</b> —— 连续变焦（后置主镜头，最大 10×），落在档位之间时变焦条显示实时倍数如 <kbd>1.7×</kbd>，录制中也能用</li>
   </ul>
 </div>
@@ -208,6 +212,7 @@
     <tr><td>码率</td><td>自动计算</td><td>按 分辨率 × 帧率 显式设定（例：1080p30 HEVC ≈ 7Mbps，4K60 封顶 45Mbps）</td></tr>
     <tr><td>音频</td><td>AAC 128kbps</td><td>立体声 48kHz，对齐原生相机；支持蓝牙麦克风</td></tr>
     <tr><td>防抖</td><td>自动</td><td>录制画面自动启用系统最佳防抖模式</td></tr>
+    <tr><td>照片</td><td>最高 12MP</td><td>真拍照走系统照片管线（降噪/色调映射），格式跟随编码设置（HEVC→HEIC / H.264→JPEG）；<b>录像中拍照</b>为视频帧截取（与原生相机一致，避免录像掉帧）</td></tr>
   </table>
 </div>
 

@@ -52,11 +52,15 @@ struct SettingsView: View {
                     }
                 }
 
+                // Internal capability scanner — development builds only, so
+                // App Review never sees debug tooling (guideline 2.2).
+                #if DEBUG
                 Section {
                     Button(loc.t(.settingsDeveloperConsole)) {
                         showConsole = true
                     }
                 }
+                #endif
             }
             .navigationTitle(loc.t(.settingsTitle))
             .navigationBarTitleDisplayMode(.inline)

@@ -4,26 +4,38 @@ import CoreVideo
 /// Shared split / picture-in-picture composition math, used by both the
 /// video recorder and still-photo capture so the two stay visually identical.
 enum DualFrameCompositor {
-    static func compose(back: CVPixelBuffer, front: CVPixelBuffer?, mode: CaptureMode, size: CGSize, portrait: Bool) -> CIImage {
-        let backImage = CIImage(cvPixelBuffer: back)
+    static func compose(back: CVPixelBuffer, front: CVPixelBuffer?, mode: CaptureMode, size: CGSize, portrait: Bool, pip: PipLayout = PipLayout()) -> CIImage {
+        composeImages(
+            back: CIImage(cvPixelBuffer: back),
+            front: front.map { CIImage(cvPixelBuffer: $0) },
+            mode: mode,
+            size: size,
+            portrait: portrait,
+            pip: pip
+        )
+    }
+
+    /// CIImage-level entry used by still-photo capture, where the inputs come
+    /// from `AVCapturePhoto` data rather than video pixel buffers.
+    static func composeImages(back backImage: CIImage, front frontImage: CIImage?, mode: CaptureMode, size: CGSize, portrait: Bool, pip: PipLayout = PipLayout()) -> CIImage {
         let canvas = CGRect(origin: .zero, size: size)
         var result = CIImage(color: .black).cropped(to: canvas)
 
         switch mode {
         case .pip:
             result = aspectFill(backImage, into: canvas).cropped(to: canvas).composited(over: result)
-            if let front {
-                let inset = size.width * 0.033
-                let pipWidth = size.width * 0.32
-                let pipHeight = pipWidth * (size.height / size.width)
+            if let frontImage {
+                // PipLayout.rect works in UI coordinates (y down); CoreImage's
+                // origin is bottom-left, so flip the vertical placement.
+                let uiRect = pip.rect(in: size)
                 let pipRect = CGRect(
-                    x: size.width - pipWidth - inset,
-                    y: size.height - pipHeight - inset,
-                    width: pipWidth,
-                    height: pipHeight
+                    x: uiRect.minX,
+                    y: size.height - uiRect.maxY,
+                    width: uiRect.width,
+                    height: uiRect.height
                 )
-                let frontImage = aspectFill(CIImage(cvPixelBuffer: front), into: pipRect)
-                result = frontImage.cropped(to: pipRect).composited(over: result)
+                let overlay = aspectFill(frontImage, into: pipRect)
+                result = overlay.cropped(to: pipRect).composited(over: result)
             }
 
         case .split:
@@ -37,8 +49,8 @@ enum DualFrameCompositor {
                 secondRect = CGRect(x: size.width / 2, y: 0, width: size.width / 2, height: size.height)
             }
             result = aspectFill(backImage, into: firstRect).cropped(to: firstRect).composited(over: result)
-            if let front {
-                result = aspectFill(CIImage(cvPixelBuffer: front), into: secondRect).cropped(to: secondRect).composited(over: result)
+            if let frontImage {
+                result = aspectFill(frontImage, into: secondRect).cropped(to: secondRect).composited(over: result)
             }
 
         case .dualFile:

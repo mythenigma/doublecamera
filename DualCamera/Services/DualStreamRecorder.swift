@@ -128,7 +128,7 @@ final class DualStreamRecorder {
 
     // MARK: - Frame ingest
 
-    func append(back: CMSampleBuffer?, front: CMSampleBuffer?, audio: CMSampleBuffer?) {
+    func append(back: CMSampleBuffer?, front: CMSampleBuffer?, audio: CMSampleBuffer?, pip: PipLayout = PipLayout()) {
         guard isRecording else { return }
 
         if let front, let pixelBuffer = CMSampleBufferGetImageBuffer(front) {
@@ -137,7 +137,7 @@ final class DualStreamRecorder {
 
         switch mode {
         case .split, .pip:
-            appendComposite(back: back, audio: audio)
+            appendComposite(back: back, audio: audio, pip: pip)
         case .dualFile:
             appendDualFile(back: back, front: front, audio: audio)
         }
@@ -193,7 +193,7 @@ final class DualStreamRecorder {
         )
     }
 
-    private func appendComposite(back: CMSampleBuffer?, audio: CMSampleBuffer?) {
+    private func appendComposite(back: CMSampleBuffer?, audio: CMSampleBuffer?, pip: PipLayout) {
         if let back, let backPixels = CMSampleBufferGetImageBuffer(back) {
             let time = CMSampleBufferGetPresentationTimeStamp(back)
 
@@ -207,7 +207,7 @@ final class DualStreamRecorder {
                 CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &rendered)
                 guard let output = rendered else { continue }
 
-                composite(back: backPixels, front: latestFront, size: target.size, portrait: target.portrait, into: output)
+                composite(back: backPixels, front: latestFront, size: target.size, portrait: target.portrait, pip: pip, into: output)
                 target.adaptor.append(output, withPresentationTime: time)
             }
         }
@@ -217,8 +217,8 @@ final class DualStreamRecorder {
 
     /// Draws the back feed (and optionally the front feed) into `output`
     /// according to the current mode and target orientation.
-    private func composite(back: CVPixelBuffer, front: CVPixelBuffer?, size: CGSize, portrait: Bool, into output: CVPixelBuffer) {
-        let result = DualFrameCompositor.compose(back: back, front: front, mode: mode, size: size, portrait: portrait)
+    private func composite(back: CVPixelBuffer, front: CVPixelBuffer?, size: CGSize, portrait: Bool, pip: PipLayout, into output: CVPixelBuffer) {
+        let result = DualFrameCompositor.compose(back: back, front: front, mode: mode, size: size, portrait: portrait, pip: pip)
         ciContext.render(result, to: output)
     }
 

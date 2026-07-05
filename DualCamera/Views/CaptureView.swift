@@ -279,12 +279,15 @@ struct CaptureView: View {
                     controller: controller,
                     mode: controller.mode,
                     swapped: controller.isSwapped,
+                    pipLayout: controller.pipLayout,
                     onFocusTap: { viewPoint, devicePoint, isBack in
                         handleFocusTap(viewPoint: viewPoint, devicePoint: devicePoint, isBack: isBack)
                     },
                     onSwap: { controller.swapCameras() },
                     onPinchBegan: { controller.beginPinchZoom() },
-                    onPinchChanged: { controller.updatePinchZoom(scale: $0) }
+                    onPinchChanged: { controller.updatePinchZoom(scale: $0) },
+                    onPipLayoutChanged: { controller.setPipLayout($0) },
+                    onPipScaleToggle: { controller.togglePipScale() }
                 )
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay(alignment: .topLeading) { outputChip }
@@ -648,8 +651,8 @@ struct CaptureView: View {
                 .frame(width: 44, height: 44)
                 .background(Color.white, in: Circle())
         }
-        .disabled(!controller.isRunning || controller.isRecording || controller.isWarmingUp)
-        .opacity(controller.isRunning && !controller.isRecording && !controller.isWarmingUp ? 1 : 0.4)
+        .disabled(!controller.isRunning || controller.isWarmingUp)
+        .opacity(controller.isRunning && !controller.isWarmingUp ? 1 : 0.4)
     }
 
     private var gridButton: some View {
