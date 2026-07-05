@@ -242,6 +242,10 @@
     <h3>📱 平放防翻转</h3>
     <p>手机平放（俯拍/架拍）时画面方向锁定，不会因轻微晃动而翻转。</p>
   </div>
+  <div class="card">
+    <h3>🧹 存储自动清理</h3>
+    <p>拍摄内容存入相册成功后<b>自动删除应用内副本</b>，不占双倍空间；保存失败的文件保留 7 天供文件 App 抢救，然后自动回收。</p>
+  </div>
 </div>
 
 <h2><span class="num">7</span>横屏使用</h2>
@@ -281,7 +285,8 @@
 DualCamera/
 ├── App/
 │   ├── DualCameraApp.swift        <span class="c">// @main 入口，加载 CaptureView</span>
-│   ├── Info.plist                 <span class="c">// 相机/麦克风/相册权限文案、URL scheme</span>
+│   ├── Info.plist                 <span class="c">// 权限文案、URL scheme、出口合规声明</span>
+│   ├── PrivacyInfo.xcprivacy      <span class="c">// App Store 隐私清单（零收集零追踪）</span>
 │   └── Assets.xcassets/           <span class="c">// App 图标 (1024 单尺寸)</span>
 ├── Views/                         <span class="c">// SwiftUI 界面层</span>
 │   ├── CaptureView.swift          <span class="c">// 主拍摄界面（竖/横双布局）</span>
@@ -316,22 +321,25 @@ DualCamera/
 <b>前置镜头</b> ──┤   （手动无连接模式组装）           ├─→ <b>backVideoOutput</b>  ─┐
               │                                    ├─→ <b>frontPreviewLayer</b> │
 <b>麦克风</b>   ──┘                                    ├─→ <b>frontVideoOutput</b> ─┼─→ <b>AVCaptureDataOutput</b>
-                                                   └─→ <b>audioOutput</b>      ─┘    <b>Synchronizer</b>
-                                                                                │ (dataQueue)
+                                                   ├─→ <b>audioOutput</b>      ─┘    <b>Synchronizer</b>
+                                                   │                            │ (dataQueue)
+                                                   ├─→ <b>backPhotoOutput</b>  ─┐
+                                                   └─→ <b>frontPhotoOutput</b> ─┴─→ 空闲时拍照:
+                                                        双镜头同时 12MP 真拍照 → 合成 → HEIC/JPEG
                                     ┌───────────────────────────────────────────┘
                                     ▼
                       同步回调：back + front + audio 三路时间对齐的样本
                                     │
                     ┌───────────────┼──────────────────┐
                     ▼               ▼                  ▼
-              拍照触发时       <b>DualStreamRecorder</b>    (丢弃，未录制时)
-             CoreImage 合成      │
-             → JPEG → 相册       ├─ 分割/画中画: CoreImage 合成 → AVAssetWriter ×1
+             录像中拍照时      <b>DualStreamRecorder</b>    (丢弃，未录制时)
+             截帧合成 → 相册     │
+             (零干扰不掉帧)      ├─ 分割/画中画: CoreImage 合成(PipLayout 实时位置) → AVAssetWriter ×1
                                  │   (竖横同拍时: 双画布 ×2)
                                  └─ 双录: 两路原始帧直写 → AVAssetWriter ×2
                                       │
                                       ▼
-                              .mov 文件 → 系统相册 + 应用沙盒
+                          .mov 文件 → 系统相册（成功后删应用内副本）
 </div>
 </div>
 
@@ -346,6 +354,8 @@ DualCamera/
     <li><b>镜头切换</b>：同镜头变焦 = 改 <code>videoZoomFactor</code>（档位点击用 <code>ramp()</code> 平滑）；跨镜头 = 只拆装后置那半套输入/连接，前置和录制不动</li>
     <li><b>方向系统</b>：每镜头一个 <code>RotationCoordinator</code> + KVO，预览实时转正；手机平放时（<code>UIDevice.orientation</code> 非有效界面方向）忽略更新防止翻转；录制方向在开录瞬间从预览连接读取并锁定</li>
     <li><b>生命周期防护</b>：五组 NotificationCenter 观察者（会话中断/中断结束/运行时错误/音频中断/热状态），任何一种都能安全收尾正在写的文件</li>
+    <li><b>真拍照管线</b>：每镜头一个 <code>AVCapturePhotoOutput</code>（配置时接线，切镜头时重接），<code>PhotoCaptureCoordinator</code> 用锁收集两张同时到达的照片再触发合成；MultiCam 硬件成本超预算拒绝挂载时自动回退截帧方案</li>
+    <li><b>PipLayout 单一布局源</b>：画中画小窗的位置/大小是一个共享结构体（归一化中心点 + 缩放档），预览布局、录制合成、拍照合成三方调同一个 <code>rect(in:)</code>——拖到哪、放多大，成片和预览像素级一致；主线程发布 + 锁保护副本喂给采集线程</li>
   </ul>
 </div>
 
@@ -397,14 +407,19 @@ DualCamera/
     <tr><td>打开 App 掐断用户音乐</td><td><code>automaticallyConfiguresApplicationAudioSession = false</code> + 自管 <code>.playAndRecord</code> + <code>.mixWithOthers</code></td></tr>
     <tr><td>4K60 双摄超出机型能力</td><td>格式协商分辨率优先、帧率降级，结果通过 ⚠️ 角标如实上报，绝不静默谎报</td></tr>
     <tr><td>录像和拍照排版不一致</td><td>合成数学抽成无状态 DualFrameCompositor，两条路径调同一函数</td></tr>
-    <tr><td>拍照不打断录像</td><td>不用 AVCapturePhotoOutput（MultiCam 下加输出会打断会话），改为在同步器回调里截取当前帧标志位触发</td></tr>
+    <tr><td>视频截帧拍照画质差（≤8MP）</td><td>配置时给每镜头挂 AVCapturePhotoOutput，空闲拍照走 12MP 系统照片管线；会话拒绝时回退截帧</td></tr>
+    <tr><td>录像中触发全分辨率拍照会掉帧</td><td>录像中自动切换到零干扰的同步器截帧（与原生相机同一策略）</td></tr>
+    <tr><td>小窗拖动后成片与预览不一致</td><td>PipLayout 共享布局：预览/录制/拍照三方用同一 rect 计算（含 UI→CoreImage 坐标翻转），拖动期间手势为唯一事实源</td></tr>
+    <tr><td>沙盒文件无限堆积（每片双倍占用）</td><td>相册保存成功即删应用内副本；失败才保留（用户唯一拷贝），启动时清扫 7 天以上残留</td></tr>
   </table>
 </div>
 
 <h2><span class="num">6</span>构建与调试</h2>
 <div class="card">
   <ul>
-    <li><b>环境</b>：Xcode 16+ / Swift 6（严格并发检查开启）/ 部署目标 iOS 17.0</li>
+    <li><b>环境</b>：Xcode 16+ / Swift 6（严格并发检查开启）/ 部署目标 iOS 17.0 / 仅 iPhone</li>
+    <li><b>标识</b>：Bundle ID <code>com.maipdf.dualcamera</code>，当前版本 <b>1.1</b></li>
+    <li><b>上架就绪</b>：隐私清单 PrivacyInfo.xcprivacy ✓ · 出口合规 <code>ITSAppUsesNonExemptEncryption=false</code> ✓ · 开发者控制台 <code>#if DEBUG</code> 隐藏（Release 包不含）✓ · 隐私政策 <code>maipdf.com/dualcamera-privacy.html</code></li>
     <li><b>构建</b>：<code>open DualCamera.xcodeproj</code> → 选 DualCamera scheme → 签名页设置自己的 Team → 真机运行（模拟器只能看 UI，MultiCam 不工作）</li>
     <li><b>命令行部署</b>：<code>xcodebuild -project DualCamera.xcodeproj -scheme DualCamera -destination 'id=&lt;设备ID&gt;' -allowProvisioningUpdates build</code>，再用 <code>xcrun devicectl device install app</code> / <code>process launch</code> 安装启动</li>
     <li><b>调试工具</b>：设置 → 开发者控制台，可扫描当前机型全部镜头/格式/帧率/MultiCam 组合并导出 JSON——适配新机型时先跑这个</li>
@@ -415,8 +430,9 @@ DualCamera/
 <h2><span class="num">7</span>后续路线（第二/三阶段）</h2>
 <div class="card">
   <ul>
-    <li><b>第二阶段（付费 App 对齐）</b>：暂停/继续录制 · AE/AF 长按锁定 · 触感反馈 · 网格线/水平仪 · 存储空间预检 · 缩略图直达刚拍素材</li>
-    <li><b>第三阶段（差异化）</b>：滤镜/LUT · 4K60 全机型适配打磨 · 外接麦克风增益控制</li>
+    <li><b>v1.1 已完成</b>：12MP 真拍照 · 录像中拍照 · 画中画拖动/缩放（所见即所得）· 沙盒自动清理 · App Store 就绪项</li>
+    <li><b>后续候选</b>：暂停/继续录制 · AE/AF 长按锁定 · 触感反馈 · 网格线/水平仪 · 存储空间预检 · 缩略图直达刚拍素材 · 真实长焦倍率显示（5× 等按机型）· 音量键快门 · VoiceOver 无障碍标签</li>
+    <li><b>差异化方向</b>：滤镜/LUT · 4K60 全机型适配打磨 · 外接麦克风增益控制</li>
   </ul>
 </div>
 
