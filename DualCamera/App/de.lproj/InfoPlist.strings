@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "MaiCamera benötigt Zugriff auf die Kamera, um mit Front- und Rückkamera gleichzeitig Vorschau anzuzeigen, zu fotografieren und zu filmen.";
+"NSMicrophoneUsageDescription" = "MaiCamera benötigt Zugriff auf das Mikrofon, um Ton in Ihren Videos aufzunehmen.";
+"NSPhotoLibraryAddUsageDescription" = "MaiCamera speichert aufgenommene Fotos und Videos in Ihrer Fotomediathek.";

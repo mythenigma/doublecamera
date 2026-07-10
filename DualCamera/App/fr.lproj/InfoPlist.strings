@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "MaiCamera a besoin d'accéder à l'appareil photo pour prévisualiser, photographier et filmer simultanément avec les caméras avant et arrière.";
+"NSMicrophoneUsageDescription" = "MaiCamera a besoin d'accéder au micro pour enregistrer le son de vos vidéos.";
+"NSPhotoLibraryAddUsageDescription" = "MaiCamera enregistre vos photos et vidéos dans votre photothèque.";

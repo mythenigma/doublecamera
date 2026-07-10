@@ -10,6 +10,8 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleDisplayName</key>
+	<string>MaiCamera</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
@@ -42,10 +44,10 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>需要访问相机以同时预览、拍照和录制前后摄像头画面。</string>
+	<string>MaiCamera needs camera access to preview, photograph, and record with the front and back cameras at the same time.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>需要访问麦克风以在录制视频时录入声音。</string>
+	<string>MaiCamera needs microphone access to record sound in your videos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>需要访问相册以将拍摄的照片和视频保存到你的照片图库。</string>
+	<string>MaiCamera saves your captured photos and videos to your Photos library.</string>
 </dict>
 </plist>

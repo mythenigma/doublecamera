@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "MaiCameraは、前面と背面のカメラで同時にプレビュー・撮影・録画するためにカメラへのアクセスが必要です。";
+"NSMicrophoneUsageDescription" = "MaiCameraは、ビデオに音声を録音するためにマイクへのアクセスが必要です。";
+"NSPhotoLibraryAddUsageDescription" = "MaiCameraは、撮影した写真とビデオをフォトライブラリに保存します。";

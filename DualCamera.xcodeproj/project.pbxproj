@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		DCBF0000000000000000010F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000116 /* Assets.xcassets */; };
 		DCBF00000000000000000120 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000120 /* PrivacyInfo.xcprivacy */; };
+		DCBF00000000000000000121 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DCVG00000000000000000001 /* InfoPlist.strings */; };
 		DCBF00000000000000000110 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000117 /* AppLanguage.swift */; };
 		DCBF00000000000000000111 /* LocKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000118 /* LocKey.swift */; };
 		DCBF00000000000000000112 /* LocalizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFI00000000000000000119 /* LocalizationManager.swift */; };
@@ -50,6 +51,11 @@
 		DCFI00000000000000000103 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DCFI00000000000000000116 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DCFI00000000000000000120 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		DCFI00000000000000000121 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		DCFI00000000000000000122 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		DCFI00000000000000000123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		DCFI00000000000000000124 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		DCFI00000000000000000125 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		DCFI00000000000000000117 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000118 /* LocKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocKey.swift; sourceTree = "<group>"; };
 		DCFI00000000000000000119 /* LocalizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationManager.swift; sourceTree = "<group>"; };
@@ -117,6 +123,7 @@
 				DCFI00000000000000000103 /* Info.plist */,
 				DCFI00000000000000000116 /* Assets.xcassets */,
 				DCFI00000000000000000120 /* PrivacyInfo.xcprivacy */,
+				DCVG00000000000000000001 /* InfoPlist.strings */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -248,6 +255,10 @@
 			knownRegions = (
 				en,
 				Base,
+				de,
+				"zh-Hans",
+				ja,
+				fr,
 			);
 			mainGroup = DCGR00000000000000000001;
 			minimizedProjectReferenceProxies = 1;
@@ -269,6 +280,7 @@
 			files = (
 				DCBF0000000000000000010F /* Assets.xcassets in Resources */,
 				DCBF00000000000000000120 /* PrivacyInfo.xcprivacy in Resources */,
+				DCBF00000000000000000121 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -326,6 +338,21 @@
 			targetProxy = DCPR00000000000000000101 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		DCVG00000000000000000001 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				DCFI00000000000000000121 /* en */,
+				DCFI00000000000000000122 /* de */,
+				DCFI00000000000000000123 /* zh-Hans */,
+				DCFI00000000000000000124 /* ja */,
+				DCFI00000000000000000125 /* fr */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		DCBC00000000000000000001 /* Debug */ = {
@@ -450,7 +477,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = J8DAZ6G7DJ;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DualCamera/App/Info.plist;
@@ -473,7 +500,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = J8DAZ6G7DJ;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = DualCamera/App/Info.plist;
@@ -496,7 +523,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = J8DAZ6G7DJ;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -519,7 +546,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = J8DAZ6G7DJ;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

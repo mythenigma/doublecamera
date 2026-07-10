@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "MaiCamera 需要访问相机，以同时预览、拍照和录制前后摄像头画面。";
+"NSMicrophoneUsageDescription" = "MaiCamera 需要访问麦克风，以在录制视频时录入声音。";
+"NSPhotoLibraryAddUsageDescription" = "MaiCamera 会将拍摄的照片和视频保存到您的照片图库。";

@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "MaiCamera needs camera access to preview, photograph, and record with the front and back cameras at the same time.";
+"NSMicrophoneUsageDescription" = "MaiCamera needs microphone access to record sound in your videos.";
+"NSPhotoLibraryAddUsageDescription" = "MaiCamera saves your captured photos and videos to your Photos library.";
