@@ -21,3 +21,6 @@ fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output/
 /maipdf
+
+# Third-party IPAs
+*.ipa
